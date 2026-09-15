@@ -390,7 +390,8 @@ async function redisCommand(command, ...args) {
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
-        signal: controller.signal
+        signal: controller.signal,
+        keepalive: true
       });
       clearTimeout(timeoutId);
 
@@ -433,14 +434,17 @@ let persistTimeouts = {};
 function scheduleBackgroundPersist(sheetName) {
   if (sheetName === "DATA_PASIEN") rebuildFastIndexes();
 
+  // Non-blocking immediate asynchronous persistence (ultra-fast response)
   clearTimeout(persistTimeouts[sheetName]);
-  persistTimeouts[sheetName] = setTimeout(async () => {
-    try {
-      await persistSheet(sheetName);
-    } catch (err) {
-      console.warn(`Background persist error on ${sheetName}:`, err.message);
-    }
-  }, 100);
+  persistTimeouts[sheetName] = setTimeout(() => {
+    setImmediate(async () => {
+      try {
+        await persistSheet(sheetName);
+      } catch (err) {
+        console.warn(`Background persist error on ${sheetName}:`, err.message);
+      }
+    });
+  }, 50);
 }
 
 // ==========================================
@@ -527,12 +531,24 @@ function loadInitialSeedPatients() {
   return fallback;
 }
 
+let dbInitPromise = null;
+function ensureDatabaseInitialized() {
+  if (!dbInitPromise) {
+    dbInitPromise = initializeDatabase().catch(err => {
+      console.warn("Database initialization notice (using memory fallback):", err.message);
+    });
+  }
+  return dbInitPromise;
+}
+
 async function initializeDatabase() {
-  console.log("Checking Upstash Redis database status...");
-  let redisPatients = await redisGet("DATA_PASIEN");
-  let redisSettings = await redisGet("SETTING");
-  let redisTemplates = await redisGet("CUSTOM_FORMAT");
-  let redisPrompts = await redisGet("CUSTOM_PROMPT");
+  console.log("Checking Upstash Redis database status (parallel ultra-fast hydration)...");
+  let [redisPatients, redisSettings, redisTemplates, redisPrompts] = await Promise.all([
+    redisGet("DATA_PASIEN"),
+    redisGet("SETTING"),
+    redisGet("CUSTOM_FORMAT"),
+    redisGet("CUSTOM_PROMPT")
+  ]);
 
   if (!redisPatients || !Array.isArray(redisPatients) || redisPatients.length === 0) {
     console.log("Seeding DATA_PASIEN into Redis from local seed file...");
@@ -732,11 +748,28 @@ app.get("/api/health", async (req, res) => {
   });
 });
 
+// Middleware to ensure database is hydrated before API & UI handling
+app.use(async (req, res, next) => {
+  if (req.path.startsWith("/api") || req.path === "/" || req.path === "/restsheet" || req.path === "/admin") {
+    await ensureDatabaseInitialized();
+  }
+  next();
+});
+
 // ==========================================
 // GET /api Router (16 Actions Full Parity with Code Gs)
 // ==========================================
-app.get("/api", async (req, res) => {
+app.get(["/api", "/api/"], async (req, res) => {
   const action = (req.query.action || "ping").toLowerCase();
+
+  // Edge Micro-Caching for Read-Only Idempotent Endpoints (<25ms on Vercel Edge)
+  const isCacheable = ["ping", "get_settings", "get_templates", "get_active_prompt", "get_summary_stats", "health"].includes(action);
+  if (isCacheable) {
+    res.setHeader("Cache-Control", "public, max-age=1, s-maxage=5, stale-while-revalidate=15");
+  } else {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  }
+  res.setHeader("X-Accelerated-By", "RSKDGM-UltraFast-Engine-v2");
 
   // 1. PING & METADATA
   if (action === "ping") {
@@ -1305,7 +1338,9 @@ app.get("/api", async (req, res) => {
 // 5. UNIVERSAL ROBUST POST /api ROUTER
 // (Supports WhatsApp Bot, SIMGOS Extension Scraper, & Web Portal)
 // ==========================================
-app.post("/api", async (req, res) => {
+app.post(["/api", "/api/", "/"], async (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("X-Accelerated-By", "RSKDGM-UltraFast-Engine-v2");
   const data = req.body || {};
   const action = (data.action || req.query.action || "").toLowerCase();
 
@@ -2170,7 +2205,12 @@ app.get("/api/admin/analytics", requireAdminAuth, async (req, res) => {
 // 8. UI PAGES (INDEX & RESTSHEET VIEWS)
 // ==========================================
 
-app.get("/", (req, res) => {
+app.get("/", (req, res, next) => {
+  if (req.query.action) {
+    // Universal support: if client calls /?action=... like GAS, handle via API handler!
+    req.url = "/api" + (req.url.includes("?") ? req.url.substring(req.url.indexOf("?")) : "");
+    return app._router.handle(req, res, next);
+  }
   res.render("index", {
     title: "RSKDGM SIMGOS v2 Database - Google Sheets Web Portal",
     gasUrl: GAS_URL,
