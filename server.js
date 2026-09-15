@@ -57,7 +57,56 @@ app.use((req, res, next) => {
   next();
 });
 
+// Static Asset Handlers & Explicit Fail-Safe Routes (for Vercel & Express)
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/public", express.static(path.join(__dirname, "public")));
+app.use("/css", express.static(path.join(__dirname, "public", "css")));
+app.use("/img", express.static(path.join(__dirname, "public", "img")));
+
+// Fail-safe explicit route for /css/main.css
+app.get("/css/main.css", (req, res) => {
+  res.setHeader("Content-Type", "text/css; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  const candidates = [
+    path.join(__dirname, "public", "css", "main.css"),
+    path.join(process.cwd(), "public", "css", "main.css"),
+    path.join(__dirname, "public", "main.css"),
+    path.join(__dirname, "style.css")
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return res.sendFile(c);
+    }
+  }
+  return res.status(404).send("/* main.css not found */");
+});
+
+// Fail-safe explicit route for /img/:filename
+app.get("/img/:filename", (req, res) => {
+  const file = req.params.filename;
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  const candidates = [
+    path.join(__dirname, "public", "img", file),
+    path.join(process.cwd(), "public", "img", file),
+    path.join(__dirname, file)
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return res.sendFile(c);
+    }
+  }
+  return res.status(404).send("Image not found");
+});
+
+// Favicon explicit route
+app.get("/favicon.ico", (req, res) => {
+  const logoPath = path.join(__dirname, "public", "img", "axalogo.png");
+  if (fs.existsSync(logoPath)) {
+    res.setHeader("Content-Type", "image/png");
+    return res.sendFile(logoPath);
+  }
+  return res.status(204).end();
+});
 
 // Simple Native Cookie Parser Middleware
 app.use((req, res, next) => {
