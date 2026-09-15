@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - RSKDGM SIMGOS v2 Analytics</title>
+  <link rel="icon" type="image/png" href="/img/axalogo.png">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-page-body">
+
+  <div class="login-card">
+    <div class="login-brand">
+      <img src="/img/axalogo.png" alt="RSKDGM Logo" class="login-logo">
+      <h1>Admin Analytics</h1>
+      <p>Masuk untuk memantau request API, bot WA & database</p>
+    </div>
+
+    <% if (error) { %>
+      <div class="login-alert login-alert-error">
+        <i class="fas fa-exclamation-circle"></i>
+        <span><%= error %></span>
+      </div>
+    <% } %>
+
+    <form class="login-form" action="/login" method="POST">
+      <div class="login-input-group">
+        <label for="username">Username Admin</label>
+        <div class="login-input-wrapper">
+          <i class="fas fa-user-shield"></i>
+          <input type="text" id="username" name="username" placeholder="Masukkan username admin..." required autofocus>
+        </div>
+      </div>
+
+      <div class="login-input-group">
+        <label for="password">Password</label>
+        <div class="login-input-wrapper">
+          <i class="fas fa-key"></i>
+          <input type="password" id="password" name="password" placeholder="Masukkan password..." required>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login-submit">
+        <i class="fas fa-sign-in-alt"></i> Masuk ke Dashboard
+      </button>
+
+      <div style="text-align: center; margin-top: 6px;">
+        <a href="/" style="font-size: 11px; color: var(--accent); text-decoration: none; font-weight: 600;">
+          <i class="fas fa-arrow-left"></i> Kembali ke Spreadsheet Portal
+        </a>
+      </div>
+    </form>
+
+    <div class="login-footer-info">
+      RSKDGM SIMGOS v2 Enterprise Cloud &bull; REST API Layer
+    </div>
+  </div>
+
+</body>
+</html>

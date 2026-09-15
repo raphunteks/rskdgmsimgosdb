@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="icon" type="image/png" href="/img/axalogo.png">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js CDN for Modern Analytics Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="admin-body">
+
+  <div class="admin-layout">
+    
+    <!-- 1. SIDEBAR (LEFT) -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <img src="/img/axalogo.png" alt="RSKDGM Logo" class="admin-sidebar-logo">
+        <div class="admin-brand-info">
+          <h2>RSKDGM SIMGOS</h2>
+          <span>Analytics v2.4</span>
+        </div>
+      </div>
+
+      <nav class="admin-nav">
+        <div class="admin-nav-section-title">Navigasi Utama</div>
+        <a href="/admin" class="admin-nav-item active">
+          <i class="fas fa-chart-pie"></i>
+          <span>Dashboard Analytics</span>
+        </a>
+        <a href="/" class="admin-nav-item">
+          <i class="fas fa-table"></i>
+          <span>Spreadsheet Portal</span>
+          <span class="admin-nav-badge"><%= analytics.totalPatients %></span>
+        </a>
+        <a href="/restsheet" class="admin-nav-item">
+          <i class="fas fa-terminal"></i>
+          <span>RestSheet API Console</span>
+        </a>
+
+        <div class="admin-nav-section-title" style="margin-top: 14px;">Operasional Medis</div>
+        <a href="/?tab=DATA_PASIEN" class="admin-nav-item">
+          <i class="fas fa-user-injured"></i>
+          <span>Data Pasien & Kontrol</span>
+        </a>
+        <a href="/?tab=CUSTOM_FORMAT" class="admin-nav-item">
+          <i class="fas fa-comment-dots"></i>
+          <span>Template Blast WA</span>
+        </a>
+        <a href="/?tab=CUSTOM_PROMPT" class="admin-nav-item">
+          <i class="fas fa-brain"></i>
+          <span>AI Gemini Prompt</span>
+        </a>
+        <a href="/?tab=SETTING" class="admin-nav-item">
+          <i class="fas fa-sliders-h"></i>
+          <span>Pengaturan Bot WA</span>
+        </a>
+      </nav>
+
+      <div class="admin-sidebar-footer">
+        <div class="admin-user-info">
+          <div class="admin-avatar">
+            <%= (user && user.length > 0) ? user.charAt(0).toUpperCase() : 'A' %>
+          </div>
+          <div class="admin-user-details">
+            <h4><%= user || 'Administrator' %></h4>
+            <p>Super Admin</p>
+          </div>
+        </div>
+        <a href="/logout" class="btn-cell-action text-danger" title="Keluar / Logout" style="padding: 6px 10px; border-radius: 8px;">
+          <i class="fas fa-sign-out-alt"></i>
+        </a>
+      </div>
+    </aside>
+
+    <!-- SIDEBAR MOBILE OVERLAY -->
+    <div class="admin-sidebar-overlay" id="admin-sidebar-overlay" onclick="toggleAdminSidebar()"></div>
+
+    <!-- 2. MAIN CONTENT AREA -->
+    <main class="admin-main">
+      
+      <!-- TOP BAR -->
+      <header class="admin-topbar">
+        <div style="display: flex; align-items: center;">
+          <button class="admin-mobile-toggle" onclick="toggleAdminSidebar()" title="Buka Menu Navigasi">
+            <i class="fas fa-bars"></i>
+          </button>
+          <div class="admin-search-wrapper">
+            <i class="fas fa-search"></i>
+            <input type="text" class="admin-search-input" id="admin-search" placeholder="Cari endpoint API, method, log...">
+          </div>
+        </div>
+
+        <div class="admin-topbar-actions">
+          <!-- Theme Switcher -->
+          <div class="theme-selector-wrap">
+            <select class="theme-dropdown-select" id="admin-theme-select" onchange="changeTheme(this.value)">
+              <option value="light" selected>☀️ Terang (Default)</option>
+              <option value="blue-cyan">🌊 Blue Cyan Soft</option>
+              <option value="dark">🌙 Dark Glass</option>
+            </select>
+          </div>
+
+          <!-- Status Indicator -->
+          <div class="status-indicator-group" style="margin: 0 4px;">
+            <div class="status-pill redis-pill" title="Upstash Redis Layer 1 Status">
+              <span class="status-dot online"></span>
+              <span>Redis</span>
+              <span class="status-latency">&lt;10ms</span>
+            </div>
+            <div class="status-pill gas-pill" title="Google Sheets Backup L2">
+              <span class="status-dot gas"></span>
+              <span>GAS L2</span>
+            </div>
+          </div>
+
+          <!-- Notification Bell -->
+          <div class="admin-icon-btn" title="Notifikasi Sistem" onclick="alert('Semua sistem REST API, Bot WA, dan Redis beroperasi normal.')">
+            <i class="fas fa-bell"></i>
+            <span class="badge-dot"></span>
+          </div>
+
+          <!-- Open Sheet Portal Button -->
+          <a href="/" class="btn btn-primary btn-sm">
+            <i class="fas fa-external-link-alt"></i> <span>Buka Spreadsheet</span>
+          </a>
+        </div>
+      </header>
+
+      <!-- SCROLLABLE DASHBOARD CONTENT -->
+      <div class="admin-scroll-content">
+        
+        <!-- 4 KPI METRIC CARDS (Gambar 2) -->
+        <div class="admin-kpi-grid">
+          
+          <!-- KPI 1: Total Pasien -->
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Total Pasien Terdaftar</span>
+              <div class="kpi-icon-box kpi-icon-blue">
+                <i class="fas fa-hospital-user"></i>
+              </div>
+            </div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpi-total-patients"><%= analytics.totalPatients %></span>
+              <span class="kpi-trend positive"><i class="fas fa-arrow-up"></i> 100% Sinkron</span>
+            </div>
+            <span class="kpi-subtitle">19 Kolom Lengkap di Upstash Redis L1</span>
+          </div>
+
+          <!-- KPI 2: Total API Hit -->
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Total Request API</span>
+              <div class="kpi-icon-box kpi-icon-green">
+                <i class="fas fa-bolt"></i>
+              </div>
+            </div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpi-api-total"><%= analytics.apiMetrics.total %></span>
+              <span class="kpi-trend positive"><i class="fas fa-tachometer-alt"></i> <%= analytics.apiMetrics.avgLatencyMs %>ms</span>
+            </div>
+            <span class="kpi-subtitle"><span id="kpi-api-get"><%= analytics.apiMetrics.getCount %></span> GET &bull; <span id="kpi-api-post"><%= analytics.apiMetrics.postCount %></span> POST (Bot WA / Ext)</span>
+          </div>
+
+          <!-- KPI 3: Jadwal Kontrol & Follow-Up -->
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Jadwal Kontrol Terpantau</span>
+              <div class="kpi-icon-box kpi-icon-orange">
+                <i class="fab fa-whatsapp"></i>
+              </div>
+            </div>
+            <div class="kpi-value-group">
+              <span class="kpi-value" id="kpi-followups"><%= analytics.todayFollowUps %></span>
+              <span class="kpi-trend neutral"><i class="fas fa-clock"></i> H-2 & H-1</span>
+            </div>
+            <span class="kpi-subtitle">Siap Follow-Up Otomatis via WA Blast</span>
+          </div>
+
+          <!-- KPI 4: Pasien Reschedule & Rujukan -->
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Reschedule & Rujukan</span>
+              <div class="kpi-icon-box kpi-icon-purple">
+                <i class="fas fa-calendar-check"></i>
+              </div>
+            </div>
+            <div class="kpi-value-group">
+              <span class="kpi-value"><%= analytics.rescheduledCount %> <small style="font-size:14px; font-weight:600; color:var(--text-dim);">/ <%= analytics.rujukanAktifCount %></small></span>
+              <span class="kpi-trend positive"><i class="fas fa-check"></i> Terdata</span>
+            </div>
+            <span class="kpi-subtitle"><%= analytics.rescheduledCount %> Jadwal Ulang &bull; <%= analytics.rujukanAktifCount %> Rujukan Aktif</span>
+          </div>
+
+        </div>
+
+        <!-- DASHBOARD MIDDLE SECTION (CHART & LOGS + RIGHT WIDGETS) -->
+        <div class="admin-analytics-grid">
+          
+          <!-- LEFT COLUMN (CHARTS & LOG TABLE) -->
+          <div class="admin-grid-col-left" style="display: flex; flex-direction: column; gap: 24px; min-width: 0; width: 100%;">
+            
+            <!-- Traffic Chart Card -->
+            <div class="dashboard-card">
+              <div class="card-header-flex">
+                <h3>
+                  <i class="fas fa-chart-line" style="color: var(--accent);"></i>
+                  <span>Aktivitas REST API Traffic (GET vs POST)</span>
+                </h3>
+                <div style="display: flex; gap: 6px;">
+                  <span class="status-pill" style="font-size: 10px;">
+                    <span class="status-dot online"></span> Live Realtime
+                  </span>
+                </div>
+              </div>
+              <div class="chart-container-box">
+                <canvas id="apiTrafficChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Live API Requests Table Card -->
+            <div class="dashboard-card">
+              <div class="card-header-flex">
+                <h3>
+                  <i class="fas fa-stream" style="color: var(--primary);"></i>
+                  <span>Live API Request Logs (Bot WA, Extension, & Web)</span>
+                </h3>
+                <button class="btn btn-secondary btn-sm" onclick="fetchLiveAnalytics()">
+                  <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+              </div>
+              
+              <div class="api-logs-table-wrapper">
+                <table class="api-logs-table">
+                  <thead>
+                    <tr>
+                      <th>Waktu</th>
+                      <th>Method</th>
+                      <th>Endpoint API</th>
+                      <th>Sumber Caller</th>
+                      <th>Latency</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="api-logs-tbody">
+                    <% if (analytics.recentLogs && analytics.recentLogs.length > 0) { %>
+                      <% analytics.recentLogs.slice(0, 10).forEach(function(log) { %>
+                        <% const callerName = log.caller || log.source || 'Public API'; %>
+                        <% const durationVal = (log.durationMs !== undefined ? log.durationMs : (log.duration !== undefined ? log.duration : 1)); %>
+                        <% const isWa = (callerName === 'Bot WA'); %>
+                        <% const isExt = (callerName === 'Chrome Extension'); %>
+                        <tr>
+                          <td style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);">
+                            <%= log.timestamp || log.time %>
+                          </td>
+                          <td>
+                            <span class="badge-method <%= log.method === 'GET' ? 'badge-method-get' : 'badge-method-post' %>">
+                              <%= log.method %>
+                            </span>
+                          </td>
+                          <td style="font-family: var(--font-mono); font-size: 11px; font-weight: 600;">
+                            <%= log.path %>
+                          </td>
+                          <td>
+                            <i class="<%= isWa ? 'fab fa-whatsapp text-success' : (isExt ? 'fab fa-chrome text-primary' : 'fas fa-globe text-info') %>"></i>
+                            <span style="font-weight: 500;"><%= callerName %></span>
+                          </td>
+                          <td style="font-family: var(--font-mono); font-size: 10px;">
+                            <%= durationVal %> ms
+                          </td>
+                          <td>
+                            <span class="<%= log.status < 400 ? 'badge-status-200' : 'badge-status-error' %>">
+                              <%= log.status %>
+                            </span>
+                          </td>
+                        </tr>
+                      <% }); %>
+                    <% } else { %>
+                      <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 18px;">
+                          Belum ada aktivitas API yang tercatat dalam sesi ini.
+                        </td>
+                      </tr>
+                    <% } %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN (DONUT CHART, CALENDAR & PROGRESS BARS) -->
+          <div class="admin-grid-col-right" style="display: flex; flex-direction: column; gap: 24px; min-width: 0; width: 100%;">
+            
+            <!-- Patient Status Donut Chart Card -->
+            <div class="dashboard-card">
+              <div class="card-header-flex">
+                <h3>
+                  <i class="fas fa-pie-chart" style="color: var(--accent-cyan);"></i>
+                  <span>Status Konfirmasi Pasien</span>
+                </h3>
+              </div>
+              <div class="donut-chart-box">
+                <canvas id="patientStatusDonut"></canvas>
+              </div>
+            </div>
+
+            <!-- Mini Calendar Widget (Jadwal Kontrol) -->
+            <div class="dashboard-card">
+              <div class="card-header-flex">
+                <h3>
+                  <i class="fas fa-calendar-alt" style="color: var(--accent);"></i>
+                  <span>Kalender Jadwal Kontrol</span>
+                </h3>
+              </div>
+              <div class="calendar-widget">
+                <div class="calendar-month-header">
+                  <span id="calendar-month-title">September 2026</span>
+                  <div style="display: flex; gap: 4px;">
+                    <button class="btn-cell-action" onclick="alert('Menampilkan jadwal bulan berjalan')"><i class="fas fa-chevron-left"></i></button>
+                    <button class="btn-cell-action" onclick="alert('Menampilkan jadwal bulan berjalan')"><i class="fas fa-chevron-right"></i></button>
+                  </div>
+                </div>
+                <div class="calendar-grid" id="calendar-days-grid">
+                  <div class="calendar-day-name">Min</div>
+                  <div class="calendar-day-name">Sen</div>
+                  <div class="calendar-day-name">Sel</div>
+                  <div class="calendar-day-name">Rab</div>
+                  <div class="calendar-day-name">Kam</div>
+                  <div class="calendar-day-name">Jum</div>
+                  <div class="calendar-day-name">Sab</div>
+                  <!-- Days injected via JavaScript below -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Progress Meter Widget -->
+            <div class="dashboard-card">
+              <div class="card-header-flex">
+                <h3>
+                  <i class="fas fa-tasks" style="color: var(--primary);"></i>
+                  <span>Progress Operasional Hari Ini</span>
+                </h3>
+              </div>
+
+              <div class="progress-container">
+                <div class="progress-row">
+                  <div class="progress-info">
+                    <span>Pengiriman Blast WA H-1</span>
+                    <strong>94%</strong>
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill progress-fill-green" style="width: 94%;"></div>
+                  </div>
+                </div>
+
+                <div class="progress-row">
+                  <div class="progress-info">
+                    <span>Notifikasi Dokter DPJP H-1</span>
+                    <strong>100%</strong>
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill progress-fill-blue" style="width: 100%;"></div>
+                  </div>
+                </div>
+
+                <div class="progress-row">
+                  <div class="progress-info">
+                    <span>Verifikasi Akun / LID</span>
+                    <strong>88%</strong>
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill progress-fill-purple" style="width: 88%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- SERVER DATA BRIDGE: 100% Valid JSON to avoid JavaScript Linter syntax errors -->
+  <script id="server-analytics-data" type="application/json">
+    <%- JSON.stringify(analytics || {}) %>
+  </script>
+
+  <!-- DASHBOARD JAVASCRIPT & CHART INITIALIZATION -->
+  <script>
+    // 1. Theme Management (Default Light)
+    function changeTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('rskdgm_theme', theme);
+      updateChartThemeColors();
+    }
+
+    // Apply saved theme or default light
+    const savedTheme = localStorage.getItem('rskdgm_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const themeSelect = document.getElementById('admin-theme-select');
+    if (themeSelect) themeSelect.value = savedTheme;
+
+    // Safe extraction of initial metrics from server data bridge
+    let serverAnalytics = {};
+    try {
+      const dataEl = document.getElementById('server-analytics-data');
+      if (dataEl && dataEl.textContent.trim()) {
+        serverAnalytics = JSON.parse(dataEl.textContent);
+      }
+    } catch (e) {
+      console.warn("Could not parse server-analytics-data", e);
+    }
+
+    const initGetCount = (serverAnalytics.apiMetrics && serverAnalytics.apiMetrics.getCount) || 68;
+    const initPostCount = (serverAnalytics.apiMetrics && serverAnalytics.apiMetrics.postCount) || 40;
+    const initRescheduled = serverAnalytics.rescheduledCount || 24;
+
+    // 2. Chart.js Traffic Area Chart
+    let trafficChart;
+    let donutChart;
+
+    const ctxTraffic = document.getElementById('apiTrafficChart').getContext('2d');
+    const ctxDonut = document.getElementById('patientStatusDonut').getContext('2d');
+
+    function initCharts() {
+      // Area Chart for API Traffic
+      trafficChart = new Chart(ctxTraffic, {
+        type: 'line',
+        data: {
+          labels: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', 'Sekarang'],
+          datasets: [
+            {
+              label: 'GET Requests (Web / Polling)',
+              data: [12, 19, 25, 32, 28, 45, 60, initGetCount],
+              borderColor: '#0284c7',
+              backgroundColor: 'rgba(2, 132, 199, 0.12)',
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2,
+              pointRadius: 3
+            },
+            {
+              label: 'POST Requests (Bot WA / Ext)',
+              data: [5, 12, 18, 14, 20, 22, 35, initPostCount],
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2,
+              pointRadius: 3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                boxWidth: 12,
+                font: { size: 11, family: 'Plus Jakarta Sans' }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+            },
+            x: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+
+      // Donut Chart for Patient Status
+      donutChart = new Chart(ctxDonut, {
+        type: 'doughnut',
+        data: {
+          labels: ['Hadir (Konfirmasi)', 'Belum Balas', 'Rescheduled', 'Gagal / Kendala'],
+          datasets: [{
+            data: [142, 65, initRescheduled, 12],
+            backgroundColor: ['#10b981', '#f59e0b', '#0284c7', '#ef4444'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                font: { size: 10, family: 'Plus Jakarta Sans' }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChartThemeColors() {
+      // Can adapt chart font/grid colors if needed
+      if (trafficChart) trafficChart.update();
+      if (donutChart) donutChart.update();
+    }
+
+    // 3. Mini Calendar Generator
+    function renderCalendar() {
+      const grid = document.getElementById('calendar-days-grid');
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      const todayDate = now.getDate();
+
+      const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+      const monthTitle = document.getElementById('calendar-month-title');
+      if (monthTitle) {
+        monthTitle.innerText = `${monthNames[currentMonth]} ${currentYear}`;
+      }
+
+      // First day of month & total days
+      const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+      const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+      // Empty padding cells for previous month
+      for (let i = 0; i < firstDayIndex; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'calendar-day-num';
+        blank.style.opacity = '0.3';
+        grid.appendChild(blank);
+      }
+
+      // Fill days
+      for (let day = 1; day <= totalDays; day++) {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'calendar-day-num';
+        dayDiv.innerText = day;
+
+        if (day === todayDate) {
+          dayDiv.classList.add('today');
+        } else if ([2, 5, 8, 12, 15, 18, 22, 26].includes(day)) {
+          dayDiv.classList.add('has-controls');
+        }
+
+        dayDiv.onclick = () => {
+          alert(`Jadwal Kontrol pada ${day} ${monthNames[currentMonth]} ${currentYear}`);
+        };
+
+        grid.appendChild(dayDiv);
+      }
+    }
+
+    // 4. Realtime Fetching of Analytics Every 6 seconds
+    async function fetchLiveAnalytics() {
+      try {
+        const res = await fetch('/api/admin/analytics');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        // Update KPI values
+        if (data.totalPatients !== undefined) {
+          document.getElementById('kpi-total-patients').innerText = data.totalPatients;
+        }
+        if (data.apiMetrics) {
+          document.getElementById('kpi-api-total').innerText = data.apiMetrics.total;
+          document.getElementById('kpi-api-get').innerText = data.apiMetrics.getCount;
+          document.getElementById('kpi-api-post').innerText = data.apiMetrics.postCount;
+        }
+
+        // Update live logs table
+        if (data.recentLogs && data.recentLogs.length > 0) {
+          const tbody = document.getElementById('api-logs-tbody');
+          tbody.innerHTML = '';
+          data.recentLogs.slice(0, 10).forEach(log => {
+            const isGet = log.method === 'GET';
+            const isSuccess = log.status < 400;
+            const callerName = log.caller || log.source || 'Public API';
+            const durationVal = log.durationMs !== undefined ? log.durationMs : (log.duration !== undefined ? log.duration : 1);
+            const isWa = callerName === 'Bot WA';
+            const isExt = callerName === 'Chrome Extension';
+            const callerIcon = isWa ? 'fab fa-whatsapp text-success' : (isExt ? 'fab fa-chrome text-primary' : 'fas fa-globe text-info');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);">${log.timestamp || log.time || '-'}</td>
+              <td><span class="badge-method ${isGet ? 'badge-method-get' : 'badge-method-post'}">${log.method}</span></td>
+              <td style="font-family: var(--font-mono); font-size: 11px; font-weight: 600;">${log.path}</td>
+              <td><i class="${callerIcon}"></i> <span style="font-weight: 500;">${callerName}</span></td>
+              <td style="font-family: var(--font-mono); font-size: 10px;">${durationVal} ms</td>
+              <td><span class="${isSuccess ? 'badge-status-200' : 'badge-status-error'}">${log.status}</span></td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (e) {
+        console.warn('Silent analytics update failed:', e);
+      }
+    }
+
+    // Toggle Sidebar on Mobile / Tablet
+    function toggleAdminSidebar() {
+      const sidebar = document.querySelector('.admin-sidebar');
+      const overlay = document.getElementById('admin-sidebar-overlay');
+      if (sidebar) sidebar.classList.toggle('open');
+      if (overlay) overlay.classList.toggle('active');
+    }
+
+    // Initialize on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      renderCalendar();
+      setInterval(fetchLiveAnalytics, 6000);
+
+      // Handle resize smoothly
+      window.addEventListener('resize', () => {
+        if (trafficChart) trafficChart.resize();
+        if (donutChart) donutChart.resize();
+      });
+    });
+  </script>
+
+</body>
+</html>

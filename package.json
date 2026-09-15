@@ -1,0 +1,18 @@
+{
+  "name": "rskdgm-simgos-portal",
+  "version": "1.0.0",
+  "description": "Web Portal Database Persis Google Sheets SIMGOS RSKDGM dengan Dual-Storage Upstash Redis & GAS REST API",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2"
+  }
+}

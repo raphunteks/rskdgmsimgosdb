@@ -1,0 +1,2350 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title><%= title %></title>
+  <link rel="icon" type="image/png" href="/img/axalogo.png">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- 1. TOP HEADER & MENUBAR (GLASSMORPHISM) -->
+  <header class="app-header">
+    <div class="brand-section">
+      <img src="/img/axalogo.png" alt="RSKDGM Logo" class="brand-logo">
+      <div class="brand-title-group">
+        <h1>
+          <span>RSKDGM SIMGOS v2</span>
+          <span class="brand-badge">PRO v2.4</span>
+        </h1>
+        <div class="brand-menu">
+          <span class="menu-item" onclick="openAddModal()">File</span>
+          <span class="menu-item" onclick="showToast('Undo / Redo siap digunakan')">Edit</span>
+          <span class="menu-item" onclick="toggleFullscreen()">Tampilan</span>
+          <span class="menu-item" onclick="openAddModal()">Sisipkan</span>
+          <span class="menu-item" onclick="switchTab('DATA_PASIEN')">Data</span>
+          <a href="/admin" class="menu-item" style="color: #10b981; font-weight: 700;">
+            <i class="fas fa-chart-pie"></i> Admin Analytics
+          </a>
+          <a href="/restsheet" class="menu-item" style="color: var(--accent); font-weight: 600;">
+            <i class="fas fa-terminal"></i> RestSheet Console
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Theme Switcher Dropdown (Default Light) -->
+      <div class="theme-selector-wrap">
+        <select class="theme-dropdown-select" id="theme-select" onchange="changeTheme(this.value)" title="Ganti Tema Tampilan">
+          <option value="light" selected>☀️ Terang (Default)</option>
+          <option value="blue-cyan">🌊 Blue Cyan Soft</option>
+          <option value="dark">🌙 Dark Glass</option>
+        </select>
+      </div>
+
+      <!-- Storage Status Indicator -->
+      <div class="status-indicator-group">
+        <div class="status-pill redis-pill" title="Upstash Redis Layer 1 Status">
+          <span class="status-dot online"></span>
+          <span>Redis L1</span>
+          <span class="status-latency">&lt;10ms</span>
+        </div>
+        <div class="status-pill gas-pill" title="Google Sheets Secondary Backup Status">
+          <span class="status-dot gas"></span>
+          <span>GAS L2</span>
+        </div>
+      </div>
+
+      <!-- Sync Button -->
+      <button class="btn btn-secondary btn-sm" id="btn-sync-pull" onclick="syncWithGAS()" title="Tarik data terbaru dari Google Spreadsheet">
+        <i class="fas fa-sync-alt"></i> <span class="d-none-mobile">Tarik GAS</span>
+      </button>
+
+      <!-- Add Record Button -->
+      <button class="btn btn-primary btn-sm" id="btn-add-primary" onclick="openAddModal()">
+        <i class="fas fa-plus"></i> <span class="d-none-mobile">Tambah Data</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- GOOGLE SHEETS PRECISION FORMATTING TOOLBAR (GAMBAR 1) -->
+  <div class="sheets-format-toolbar" id="sheets-formatting-toolbar">
+    
+    <!-- 1. Search menus -->
+    <div class="tb-group">
+      <button class="tb-search-menu-btn" onclick="document.getElementById('global-search').focus()" title="Telusuri menu (Alt+/)">
+        <i class="fas fa-search"></i>
+        <span>Telusuri</span>
+      </button>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 2. History & Print -->
+    <div class="tb-group">
+      <button class="tb-btn" id="tb-undo" onclick="sheetFormatUndo()" title="Urungkan (Ctrl+Z)">
+        <i class="fas fa-undo"></i>
+      </button>
+      <button class="tb-btn" id="tb-redo" onclick="sheetFormatRedo()" title="Ulangi (Ctrl+Y)">
+        <i class="fas fa-redo"></i>
+      </button>
+      <button class="tb-btn" id="tb-print" onclick="window.print()" title="Cetak (Ctrl+P)">
+        <i class="fas fa-print"></i>
+      </button>
+      <button class="tb-btn" id="tb-paint-format" onclick="sheetFormatPainter()" title="Format cat / Format Painter">
+        <i class="fas fa-paint-roller"></i>
+      </button>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 3. Zoom Dropdown -->
+    <div class="tb-group">
+      <select class="tb-select tb-select-zoom" id="tb-zoom" onchange="setSheetZoom(this.value)" title="Zoom tampilan">
+        <option value="50">50%</option>
+        <option value="75">75%</option>
+        <option value="90">90%</option>
+        <option value="100" selected>100%</option>
+        <option value="125">125%</option>
+        <option value="150">150%</option>
+        <option value="200">200%</option>
+      </select>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 4. Number & Currency Formats -->
+    <div class="tb-group">
+      <button class="tb-btn" onclick="applyCellFormat('currency')" title="Format sebagai mata uang (Rp / $)">
+        <i class="fas fa-dollar-sign"></i>
+      </button>
+      <button class="tb-btn" onclick="applyCellFormat('percent')" title="Format sebagai persen (%)">
+        <i class="fas fa-percent"></i>
+      </button>
+      <button class="tb-btn" onclick="applyCellFormat('dec-decrease')" title="Kurangi angka desimal (.0)">
+        <span style="font-size: 11px; font-weight:700;">.0<i class="fas fa-arrow-left" style="font-size:8px;"></i></span>
+      </button>
+      <button class="tb-btn" onclick="applyCellFormat('dec-increase')" title="Tambah angka desimal (.00)">
+        <span style="font-size: 11px; font-weight:700;"><i class="fas fa-arrow-right" style="font-size:8px;"></i>.00</span>
+      </button>
+      <button class="tb-btn" onclick="applyCellFormat('number')" title="Format angka lainnya (123)">
+        <span style="font-size: 10px; font-weight:700; font-family:var(--font-mono);">123</span>
+      </button>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 5. Font Family & Size -->
+    <div class="tb-group">
+      <select class="tb-select tb-select-font" id="tb-font-family" onchange="applyCellFontFamily(this.value)" title="Keluarga Font">
+        <option value="'Plus Jakarta Sans', sans-serif" selected>Jakarta Sans</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="'Roboto', sans-serif">Roboto</option>
+        <option value="'Inter', sans-serif">Inter</option>
+        <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+        <option value="Georgia, serif">Georgia</option>
+      </select>
+
+      <div class="tb-font-size-stepper">
+        <button class="tb-btn" onclick="stepFontSize(-1)" title="Perkecil ukuran font">
+          <i class="fas fa-minus"></i>
+        </button>
+        <input type="text" class="tb-font-size-input" id="tb-font-size" value="12" onchange="applyCellFontSize(this.value)">
+        <button class="tb-btn" onclick="stepFontSize(1)" title="Perbesar ukuran font">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 6. Bold, Italic, Strikethrough, Colors -->
+    <div class="tb-group">
+      <button class="tb-btn" id="tb-btn-bold" onclick="toggleCellBold()" title="Tebal / Bold (Ctrl+B)">
+        <i class="fas fa-bold"></i>
+      </button>
+      <button class="tb-btn" id="tb-btn-italic" onclick="toggleCellItalic()" title="Miring / Italic (Ctrl+I)">
+        <i class="fas fa-italic"></i>
+      </button>
+      <button class="tb-btn" id="tb-btn-strike" onclick="toggleCellStrike()" title="Coret / Strikethrough (Alt+Shift+5)">
+        <i class="fas fa-strikethrough"></i>
+      </button>
+      
+      <!-- Text Color Button with Color Bar -->
+      <div class="tb-btn tb-color-btn" title="Warna teks">
+        <span style="font-weight:800; font-size:12px; line-height:1;">A</span>
+        <div class="tb-color-bar" id="tb-text-color-bar"></div>
+        <input type="color" class="tb-color-input-hidden" id="tb-text-color-picker" value="#ef4444" onchange="applyCellTextColor(this.value)">
+      </div>
+
+      <!-- Fill Color Button (Bucket) with Color Bar -->
+      <div class="tb-btn tb-color-btn" title="Warna isi / Fill color">
+        <i class="fas fa-fill-drip" style="font-size:11px;"></i>
+        <div class="tb-color-bar tb-fill-bar" id="tb-fill-color-bar"></div>
+        <input type="color" class="tb-color-input-hidden" id="tb-fill-color-picker" value="#fef08a" onchange="applyCellFillColor(this.value)">
+      </div>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 7. Borders & Merge -->
+    <div class="tb-group">
+      <button class="tb-btn" onclick="applyCellBorder()" title="Batas / Borders">
+        <i class="fas fa-border-all"></i>
+      </button>
+      <button class="tb-btn" onclick="applyCellMerge()" title="Gabungkan sel / Merge">
+        <i class="fas fa-table-cells-large"></i>
+      </button>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 8. Alignments & Wrapping -->
+    <div class="tb-group">
+      <button class="tb-btn" id="tb-align-left" onclick="applyCellAlign('left')" title="Rata kiri">
+        <i class="fas fa-align-left"></i>
+      </button>
+      <button class="tb-btn" id="tb-align-center" onclick="applyCellAlign('center')" title="Rata tengah">
+        <i class="fas fa-align-center"></i>
+      </button>
+      <button class="tb-btn" id="tb-align-right" onclick="applyCellAlign('right')" title="Rata kanan">
+        <i class="fas fa-align-right"></i>
+      </button>
+      <button class="tb-btn" onclick="applyCellVerticalAlign()" title="Perataan vertikal">
+        <i class="fas fa-arrows-alt-v"></i>
+      </button>
+      <button class="tb-btn" id="tb-text-wrap" onclick="toggleCellWrap()" title="Pelipatan teks / Text Wrap">
+        <i class="fas fa-text-width"></i>
+      </button>
+      <button class="tb-btn" onclick="applyTextRotation()" title="Rotasi teks">
+        <i class="fas fa-italic" style="transform: rotate(25deg);"></i>
+      </button>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- 9. Insert Link, Comment, Chart, Filter, Functions -->
+    <div class="tb-group">
+      <button class="tb-btn" onclick="insertLinkPrompt()" title="Sisipkan link (Ctrl+K)">
+        <i class="fas fa-link"></i>
+      </button>
+      <button class="tb-btn" onclick="insertCommentPrompt()" title="Sisipkan komentar">
+        <i class="fas fa-comment-alt"></i>
+      </button>
+      <button class="tb-btn" onclick="window.location.href='/admin'" title="Buka grafik analisis (Admin)">
+        <i class="fas fa-chart-pie"></i>
+      </button>
+      <button class="tb-btn" onclick="toggleFilterBar()" title="Buat filter">
+        <i class="fas fa-filter"></i>
+      </button>
+      <button class="tb-btn" onclick="insertFunctionPrompt()" title="Fungsi formula (SUM, AVERAGE, COUNT)">
+        <span style="font-weight: 800; font-size:12px;">&Sigma;</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- 2. FORMULA & ADDRESS BAR (DESKTOP/TABLET) -->
+  <div class="formula-bar-container">
+    <div class="cell-name-box" id="cell-address" title="Koordinat Sel Terpilih">A1</div>
+    <div class="formula-symbol" title="Formula & Nilai Sel">fx</div>
+    <div class="formula-input-wrapper">
+      <input type="text" id="formula-input" placeholder="Pilih sel pada spreadsheet untuk melihat atau mengedit nilai...">
+    </div>
+  </div>
+
+  <!-- 3. ACTION TOOLBAR, DUAL-VIEW TOGGLE & FILTER -->
+  <div class="action-toolbar">
+    <div class="toolbar-left">
+      <!-- View Mode Toggle: Grid vs Mobile Cards -->
+      <div class="view-mode-toggle">
+        <button class="view-toggle-btn active" id="btn-view-grid" onclick="setViewMode('grid')" title="Tampilan Spreadsheet Grid">
+          <i class="fas fa-table"></i> <span>Grid</span>
+        </button>
+        <button class="view-toggle-btn" id="btn-view-cards" onclick="setViewMode('cards')" title="Tampilan Kartu Medis Mobile">
+          <i class="fas fa-id-card"></i> <span>Kartu</span>
+        </button>
+      </div>
+
+      <!-- Quick Filter Pills -->
+      <div class="filter-pills">
+        <button class="filter-btn active" data-filter="all" onclick="applyFilter('all')">
+          <i class="fas fa-list"></i> Semua
+        </button>
+        <button class="filter-btn" data-filter="h2" onclick="applyFilter('h2')">
+          <i class="fas fa-bell"></i> H-2
+        </button>
+        <button class="filter-btn" data-filter="h1" onclick="applyFilter('h1')">
+          <i class="fas fa-calendar-check"></i> H-1
+        </button>
+        <button class="filter-btn" data-filter="reschedule" onclick="applyFilter('reschedule')">
+          <i class="fas fa-history"></i> Reschedule
+        </button>
+        <button class="filter-btn" data-filter="rujukan_aktif" onclick="applyFilter('rujukan_aktif')">
+          <i class="fas fa-file-medical"></i> Rujukan
+        </button>
+        <button class="filter-btn" data-filter="unlinked" onclick="applyFilter('unlinked')">
+          <i class="fas fa-link-slash"></i> Butuh LID
+        </button>
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      <!-- Global Search -->
+      <div class="search-box">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="global-search" placeholder="Cari Nama, No RM, WA, LID..." oninput="handleSearch(this.value)">
+        <button id="search-clear" onclick="clearSearch()" style="display:none;"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Export CSV -->
+      <button class="btn btn-secondary btn-sm" onclick="exportActiveSheetToCSV()" title="Ekspor data sheet aktif ke file CSV">
+        <i class="fas fa-file-csv"></i> <span>CSV</span>
+      </button>
+
+      <!-- Reload -->
+      <button class="btn btn-secondary btn-sm btn-icon-only" onclick="loadAllData(true)" title="Muat ulang tabel">
+        <i class="fas fa-redo-alt"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. MAIN SPREADSHEET WORKSPACE -->
+  <main class="spreadsheet-workspace" id="spreadsheet-container">
+    
+    <!-- SHEET 1: DATA_PASIEN (19 Columns A to S) -->
+    <div class="sheet-view-wrapper active" id="view-DATA_PASIEN">
+      
+      <!-- View Option A: Classic Google Sheets Table Grid -->
+      <div class="grid-table-container" id="grid-container-DATA_PASIEN">
+        <table class="spreadsheet-table" id="table-DATA_PASIEN">
+          <thead>
+            <tr>
+              <th class="col-row-number">#</th>
+              <th class="col-header" data-col="A">A<span class="sub-col">Timestamp</span></th>
+              <th class="col-header" data-col="B">B<span class="sub-col">No RM</span></th>
+              <th class="col-header" data-col="C">C<span class="sub-col">Nama Pasien</span></th>
+              <th class="col-header" data-col="D">D<span class="sub-col">Tanggal Masuk</span></th>
+              <th class="col-header" data-col="E">E<span class="sub-col">Tanggal Kontrol</span></th>
+              <th class="col-header" data-col="F">F<span class="sub-col">No WA</span></th>
+              <th class="col-header" data-col="G">G<span class="sub-col">Tempat / Tgl Lahir</span></th>
+              <th class="col-header" data-col="H">H<span class="sub-col">Umur</span></th>
+              <th class="col-header" data-col="I">I<span class="sub-col">Agama</span></th>
+              <th class="col-header" data-col="J">J<span class="sub-col">Jenis Kelamin</span></th>
+              <th class="col-header" data-col="K">K<span class="sub-col">Status Kirim WA H-2</span></th>
+              <th class="col-header" data-col="L">L<span class="sub-col">Status Notif Dokter H-2</span></th>
+              <th class="col-header" data-col="M">M<span class="sub-col">Status Kirim WA H-1</span></th>
+              <th class="col-header" data-col="N">N<span class="sub-col">Status Notif Dokter H-1</span></th>
+              <th class="col-header" data-col="O">O<span class="sub-col">No Sender</span></th>
+              <th class="col-header" data-col="P">P<span class="sub-col">Status Reschedule</span></th>
+              <th class="col-header" data-col="Q">Q<span class="sub-col">Status Rujukan</span></th>
+              <th class="col-header" data-col="R">R<span class="sub-col">No LID</span></th>
+              <th class="col-header" data-col="S">S<span class="sub-col">Tanggal Reschedule</span></th>
+              <th class="col-action-header">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-DATA_PASIEN">
+            <!-- Populated dynamically via JS -->
+            <tr>
+              <td colspan="21" class="loading-state" style="text-align: center; padding: 30px; color: var(--text-dim);">
+                <i class="fas fa-spinner fa-spin"></i> Memuat database rekam medis SIMGOS dari Redis...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Append Rows Bar (Google Sheets Style: Tambah baris tanpa batas) -->
+        <div class="sheet-append-rows-bar">
+          <button class="btn btn-secondary btn-sm" onclick="appendRowsAction(100)">
+            <i class="fas fa-plus"></i> Tambah 100 Baris
+          </button>
+          <span>atau tambahkan</span>
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-DATA_PASIEN" value="1000" min="1" max="1000">
+          <span>baris lagi</span>
+          <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('DATA_PASIEN')">
+            <i class="fas fa-layer-group"></i> Tambah Baris
+          </button>
+          <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
+            <i class="fas fa-info-circle"></i> Tips: Anda dapat langsung <strong>Cmd+V / Ctrl+V</strong> untuk paste data dari Google Sheets / Excel kapan saja!
+          </span>
+        </div>
+      </div>
+
+      <!-- View Option B: Glassmorphic Medical Cards View (Mobile & Tablet Friendly) -->
+      <div class="mobile-cards-container" id="cards-container-DATA_PASIEN">
+        <div class="patient-cards-grid" id="cards-grid-DATA_PASIEN">
+          <!-- Populated dynamically via renderCardsPatients() -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SHEET 2: SETTING -->
+    <div class="sheet-view-wrapper" id="view-SETTING">
+      <div class="grid-table-container">
+        <table class="spreadsheet-table" id="table-SETTING">
+          <thead>
+            <tr>
+              <th class="col-row-number">#</th>
+              <th class="col-header" data-col="A" style="width: 250px;">A<span class="sub-col">PARAMETER</span></th>
+              <th class="col-header" data-col="B" style="width: 320px;">B<span class="sub-col">VALUE</span></th>
+              <th class="col-header" data-col="C">C<span class="sub-col">KETERANGAN</span></th>
+              <th class="col-action-header">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-SETTING">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+
+        <div class="sheet-append-rows-bar">
+          <button class="btn btn-secondary btn-sm" onclick="appendRowsAction(10)">
+            <i class="fas fa-plus"></i> Tambah 10 Baris
+          </button>
+          <span>atau tambahkan</span>
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-SETTING" value="50" min="1" max="500">
+          <span>baris</span>
+          <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('SETTING')">
+            <i class="fas fa-layer-group"></i> Tambah
+          </button>
+          <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
+            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste pengaturan secara instan.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHEET 3: CUSTOM_FORMAT -->
+    <div class="sheet-view-wrapper" id="view-CUSTOM_FORMAT">
+      <div class="grid-table-container">
+        <table class="spreadsheet-table" id="table-CUSTOM_FORMAT">
+          <thead>
+            <tr>
+              <th class="col-row-number">#</th>
+              <th class="col-header" data-col="A" style="width: 220px;">A<span class="sub-col">KODE_TEMPLATE</span></th>
+              <th class="col-header" data-col="B" style="width: 240px;">B<span class="sub-col">TARGET_PENERIMA</span></th>
+              <th class="col-header" data-col="C" style="width: 480px;">C<span class="sub-col">TEMPLATE_PESAN</span></th>
+              <th class="col-header" data-col="D" style="width: 200px;">D<span class="sub-col">PARAMETER_TERSEDIA</span></th>
+              <th class="col-action-header">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-CUSTOM_FORMAT">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+
+        <div class="sheet-append-rows-bar">
+          <button class="btn btn-secondary btn-sm" onclick="appendRowsAction(10)">
+            <i class="fas fa-plus"></i> Tambah 10 Baris
+          </button>
+          <span>atau tambahkan</span>
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-CUSTOM_FORMAT" value="50" min="1" max="500">
+          <span>baris</span>
+          <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('CUSTOM_FORMAT')">
+            <i class="fas fa-layer-group"></i> Tambah
+          </button>
+          <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
+            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste format blast WA secara instan.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHEET 4: CUSTOM_PROMPT -->
+    <div class="sheet-view-wrapper" id="view-CUSTOM_PROMPT">
+      <div class="grid-table-container">
+        <table class="spreadsheet-table" id="table-CUSTOM_PROMPT">
+          <thead>
+            <tr>
+              <th class="col-row-number">#</th>
+              <th class="col-header" data-col="A" style="width: 220px;">A<span class="sub-col">KODE_PROMPT</span></th>
+              <th class="col-header" data-col="B" style="width: 260px;">B<span class="sub-col">JUDUL</span></th>
+              <th class="col-header" data-col="C" style="width: 480px;">C<span class="sub-col">SYSTEM_PROMPT</span></th>
+              <th class="col-header" data-col="D" style="width: 120px;">D<span class="sub-col">IS_ACTIVE</span></th>
+              <th class="col-header" data-col="E">E<span class="sub-col">KETERANGAN</span></th>
+              <th class="col-action-header">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-CUSTOM_PROMPT">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+
+        <div class="sheet-append-rows-bar">
+          <button class="btn btn-secondary btn-sm" onclick="appendRowsAction(5)">
+            <i class="fas fa-plus"></i> Tambah 5 Baris
+          </button>
+          <span>atau tambahkan</span>
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-CUSTOM_PROMPT" value="20" min="1" max="100">
+          <span>baris</span>
+          <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('CUSTOM_PROMPT')">
+            <i class="fas fa-layer-group"></i> Tambah
+          </button>
+          <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
+            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste custom prompt AI secara instan.
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 5. BOTTOM SHEET TAB BAR (DESKTOP) -->
+  <footer class="sheet-bottom-bar">
+    <div class="tab-controls-left">
+      <button class="btn-sheet-nav" onclick="openAddModal()" title="Tambah Lembar / Data Baru">
+        <i class="fas fa-plus"></i>
+      </button>
+      <div class="sheet-tabs-list">
+        <div class="sheet-tab active" data-sheet="DATA_PASIEN" onclick="switchTab('DATA_PASIEN')">
+          <i class="fas fa-table"></i>
+          <span class="tab-name">DATA_PASIEN</span>
+          <span class="tab-badge" id="badge-patients-count">0</span>
+        </div>
+        <div class="sheet-tab" data-sheet="SETTING" onclick="switchTab('SETTING')">
+          <i class="fas fa-sliders-h"></i>
+          <span class="tab-name">SETTING</span>
+          <span class="tab-badge" id="badge-settings-count">12</span>
+        </div>
+        <div class="sheet-tab" data-sheet="CUSTOM_FORMAT" onclick="switchTab('CUSTOM_FORMAT')">
+          <i class="fas fa-comment-dots"></i>
+          <span class="tab-name">CUSTOM_FORMAT</span>
+          <span class="tab-badge" id="badge-templates-count">13</span>
+        </div>
+        <div class="sheet-tab" data-sheet="CUSTOM_PROMPT" onclick="switchTab('CUSTOM_PROMPT')">
+          <i class="fas fa-brain"></i>
+          <span class="tab-name">CUSTOM_PROMPT</span>
+          <span class="tab-badge" id="badge-prompts-count">1</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-status-right">
+      <span class="status-meta" id="stat-active-cell">Sel: <strong>A1</strong></span>
+      <span class="status-meta" id="stat-row-count">Total: <strong>0</strong> Baris</span>
+      <span class="status-meta" id="stat-last-sync">Sync: <strong>Tersimpan</strong></span>
+      <span class="status-meta live-clock" id="live-clock">--:-- WITA</span>
+    </div>
+  </footer>
+
+  <!-- 6. MOBILE FLOATING ACTION BUTTON & BOTTOM NAVIGATION -->
+  <button class="mobile-fab" id="mobile-fab" onclick="openAddModal()" title="Tambah Pasien">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-item active" data-sheet="DATA_PASIEN" onclick="switchTab('DATA_PASIEN')">
+      <i class="fas fa-users"></i>
+      <span>Pasien</span>
+    </button>
+    <button class="mobile-nav-item" data-sheet="SETTING" onclick="switchTab('SETTING')">
+      <i class="fas fa-sliders-h"></i>
+      <span>Setting</span>
+    </button>
+    <button class="mobile-nav-item" data-sheet="CUSTOM_FORMAT" onclick="switchTab('CUSTOM_FORMAT')">
+      <i class="fas fa-comment-dots"></i>
+      <span>Template</span>
+    </button>
+    <button class="mobile-nav-item" data-sheet="CUSTOM_PROMPT" onclick="switchTab('CUSTOM_PROMPT')">
+      <i class="fas fa-brain"></i>
+      <span>Prompt</span>
+    </button>
+    <a href="/restsheet" class="mobile-nav-item">
+      <i class="fas fa-terminal"></i>
+      <span>API</span>
+    </a>
+  </nav>
+
+  <!-- ==========================================
+       7. MODALS (BOTTOM SHEET ON MOBILE)
+       ========================================== -->
+
+  <!-- MODAL: ADD / EDIT PATIENT (19 COLUMNS) -->
+  <div class="modal-overlay" id="modal-patient">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 id="modal-patient-title"><i class="fas fa-user-plus"></i> Form Rekam Medis Pasien</h3>
+        <button class="modal-close" onclick="closeModal('modal-patient')">&times;</button>
+      </div>
+      <form id="form-patient" onsubmit="savePatient(event)">
+        <input type="hidden" id="p-row-number">
+        <div class="modal-body modal-grid-3">
+          
+          <!-- Bagian 1: Data Identitas & Medis -->
+          <div class="form-section-title">1. Data Rekam Medis Pasien</div>
+          <div class="form-group">
+            <label>No. Rekam Medis (RM) <span class="req">*</span></label>
+            <input type="text" id="p-no-rm" placeholder="00.06.32.89" required>
+          </div>
+          <div class="form-group">
+            <label>Nama Lengkap Pasien <span class="req">*</span></label>
+            <input type="text" id="p-nama-pasien" placeholder="Nama sesuai KTP / SIMGOS" required>
+          </div>
+          <div class="form-group">
+            <label>Tanggal Masuk</label>
+            <input type="date" id="p-tgl-masuk">
+          </div>
+          <div class="form-group">
+            <label>Tanggal Kontrol <span class="req">*</span></label>
+            <input type="date" id="p-tgl-kontrol" required>
+          </div>
+          <div class="form-group">
+            <label>Tempat / Tgl Lahir</label>
+            <input type="text" id="p-tempat-tgl-lahir" placeholder="Makassar, 12-05-1990">
+          </div>
+          <div class="form-group">
+            <label>Umur Pasien</label>
+            <input type="text" id="p-umur" placeholder="32">
+          </div>
+          <div class="form-group">
+            <label>Agama</label>
+            <select id="p-agama">
+              <option value="Islam">Islam</option>
+              <option value="Kristen Protestan">Kristen Protestan</option>
+              <option value="Katolik">Katolik</option>
+              <option value="Hindu">Hindu</option>
+              <option value="Buddha">Buddha</option>
+              <option value="Konghucu">Konghucu</option>
+              <option value="-">-</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Jenis Kelamin</label>
+            <select id="p-jk">
+              <option value="P">Perempuan (P)</option>
+              <option value="L">Laki-laki (L)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status Rujukan</label>
+            <select id="p-status-rujukan">
+              <option value="Rujukan Aktif">Rujukan Aktif</option>
+              <option value="Rujukan Habis">Rujukan Habis</option>
+            </select>
+          </div>
+
+          <!-- Bagian 2: Kontak WhatsApp & Identitas Digital -->
+          <div class="form-section-title">2. Kontak WhatsApp & JID / LID</div>
+          <div class="form-group">
+            <label>No. WhatsApp Pasien <span class="req">*</span></label>
+            <input type="text" id="p-no-hp" placeholder="628123456789" required>
+          </div>
+          <div class="form-group">
+            <label>No. LID (WhatsApp Linked Device ID)</label>
+            <input type="text" id="p-no-lid" placeholder="Contoh: 110621815218280">
+          </div>
+          <div class="form-group">
+            <label>No. Sender Terakhir</label>
+            <input type="text" id="p-no-sender" placeholder="Nomor sender WA">
+          </div>
+
+          <!-- Bagian 3: Status Followup & Reschedule -->
+          <div class="form-section-title">3. Status Follow-Up Blast & Reschedule</div>
+          <div class="form-group">
+            <label>Status WA H-2</label>
+            <select id="p-status-wa-h2">
+              <option value="Pending">Pending</option>
+              <option value="Terkirim">Terkirim</option>
+              <option value="Hadir (Terkonfirmasi)">Hadir (Terkonfirmasi)</option>
+              <option value="Reschedule">Reschedule</option>
+              <option value="Gagal">Gagal</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status Notif Dokter H-2</label>
+            <select id="p-status-doc-h2">
+              <option value="Pending">Pending</option>
+              <option value="Terkirim">Terkirim</option>
+              <option value="Gagal">Gagal</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status WA H-1</label>
+            <select id="p-status-wa-h1">
+              <option value="Pending">Pending</option>
+              <option value="Terkirim">Terkirim</option>
+              <option value="Hadir (Terkonfirmasi)">Hadir (Terkonfirmasi)</option>
+              <option value="Reschedule">Reschedule</option>
+              <option value="Gagal">Gagal</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status Notif Dokter H-1</label>
+            <select id="p-status-doc-h1">
+              <option value="Pending">Pending</option>
+              <option value="Terkirim">Terkirim</option>
+              <option value="Gagal">Gagal</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status Reschedule</label>
+            <input type="text" id="p-status-reschedule" placeholder="- atau Reschedule Terkonfirmasi">
+          </div>
+          <div class="form-group">
+            <label>Tanggal Reschedule Baru (Kolom 19 / S)</label>
+            <input type="date" id="p-tgl-reschedule">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-patient')">Batal</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Pasien</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT SETTING -->
+  <div class="modal-overlay" id="modal-setting">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fas fa-sliders-h"></i> Edit Konfigurasi Sistem</h3>
+        <button class="modal-close" onclick="closeModal('modal-setting')">&times;</button>
+      </div>
+      <form id="form-setting" onsubmit="saveSetting(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Parameter</label>
+            <input type="text" id="s-param" readonly style="background: var(--bg-surface-elevated); color: var(--accent);">
+          </div>
+          <div class="form-group">
+            <label>Value / Nilai</label>
+            <textarea id="s-val" rows="3" required></textarea>
+          </div>
+          <div class="form-group">
+            <label>Keterangan</label>
+            <input type="text" id="s-ket">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-setting')">Batal</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Setting</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT TEMPLATE -->
+  <div class="modal-overlay" id="modal-template">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3><i class="fas fa-comment-dots"></i> Edit Template Pesan WhatsApp</h3>
+        <button class="modal-close" onclick="closeModal('modal-template')">&times;</button>
+      </div>
+      <form id="form-template" onsubmit="saveTemplate(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Kode Template</label>
+            <input type="text" id="t-code" readonly style="background: var(--bg-surface-elevated); color: var(--accent);">
+          </div>
+          <div class="form-group">
+            <label>Target Penerima</label>
+            <input type="text" id="t-target" required>
+          </div>
+          <div class="form-group">
+            <label>Template Pesan (Mendukung Format WhatsApp: *bold*, _italic_, list)</label>
+            <div class="template-variable-tags" id="template-tags-container">
+              <span class="tag-pill" onclick="insertTag('{NAMA_PASIEN}')">{NAMA_PASIEN}</span>
+              <span class="tag-pill" onclick="insertTag('{NO_RM}')">{NO_RM}</span>
+              <span class="tag-pill" onclick="insertTag('{TGL_KONTROL}')">{TGL_KONTROL}</span>
+              <span class="tag-pill" onclick="insertTag('{TGL_RESCHEDULE}')">{TGL_RESCHEDULE}</span>
+              <span class="tag-pill" onclick="insertTag('{DPJP_UTAMA}')">{DPJP_UTAMA}</span>
+              <span class="tag-pill" onclick="insertTag('{NO_WA}')">{NO_WA}</span>
+              <span class="tag-pill" onclick="insertTag('{STATUS_RUJUKAN}')">{STATUS_RUJUKAN}</span>
+              <span class="tag-pill" onclick="insertTag('{POLI_KLINIK}')">{POLI_KLINIK}</span>
+              <span class="tag-pill" onclick="insertTag('{NAMA_INSTANSI}')">{NAMA_INSTANSI}</span>
+            </div>
+            <textarea id="t-text" rows="8" style="font-family: var(--font-mono); font-size: 13px;" required></textarea>
+          </div>
+          <div class="form-group">
+            <label>Parameter Tersedia</label>
+            <input type="text" id="t-params" placeholder="{NAMA_PASIEN}, {NO_RM}...">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-template')">Batal</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Template</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT PROMPT -->
+  <div class="modal-overlay" id="modal-prompt">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-header">
+        <h3><i class="fas fa-brain"></i> Edit System Prompt AI RSKDGM</h3>
+        <button class="modal-close" onclick="closeModal('modal-prompt')">&times;</button>
+      </div>
+      <form id="form-prompt" onsubmit="savePrompt(event)">
+        <div class="modal-body">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Kode Prompt</label>
+              <input type="text" id="pr-code" readonly style="background: var(--bg-surface-elevated); color: var(--accent);">
+            </div>
+            <div class="form-group">
+              <label>Status Aktif</label>
+              <select id="pr-active">
+                <option value="TRUE">TRUE (Aktif Digunakan Bot AI)</option>
+                <option value="FALSE">FALSE (Arsip / Non-Aktif)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Judul Prompt</label>
+            <input type="text" id="pr-title" required>
+          </div>
+          <div class="form-group">
+            <label>System Prompt Lengkap (Birokratis Formal & Pakar Seluruh Spesialisasi Kedokteran Gigi)</label>
+            <textarea id="pr-text" rows="14" style="font-family: var(--font-mono); font-size: 12px; line-height: 1.5;" required></textarea>
+          </div>
+          <div class="form-group">
+            <label>Keterangan</label>
+            <input type="text" id="pr-ket">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-prompt')">Batal</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Prompt AI</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- CLIENT-SIDE LOGIC -->
+  <script>
+    // State Store
+    let state = {
+      activeSheet: "DATA_PASIEN",
+      viewMode: "grid", // "grid" or "cards"
+      patients: [],
+      settings: [],
+      templates: [],
+      prompts: [],
+      activeFilter: "all",
+      searchQuery: "",
+      selectedCell: { coord: "A1", row: 1, col: "A", value: "" },
+      lastSync: null
+    };
+
+    // Auto-detect Mobile on load
+    if (window.innerWidth <= 768) {
+      state.viewMode = "cards";
+    }
+
+    // Live Clock
+    function updateClock() {
+      const now = new Date();
+      const str = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " WITA";
+      const el = document.getElementById("live-clock");
+      if (el) el.textContent = str;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Toast Notification
+    function showToast(msg, type = "success") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = `toast toast-${type}`;
+      const icon = type === "success" ? "fa-check-circle" : (type === "error" ? "fa-exclamation-triangle" : "fa-info-circle");
+      toast.innerHTML = `<i class="fas ${icon}"></i> <span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-10px)";
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Modal Helpers
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add("active");
+    }
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove("active");
+    }
+
+    // View Mode Switcher: Grid vs Cards
+    function setViewMode(mode) {
+      state.viewMode = mode;
+      document.getElementById("btn-view-grid").classList.toggle("active", mode === "grid");
+      document.getElementById("btn-view-cards").classList.toggle("active", mode === "cards");
+
+      const gridContainer = document.getElementById("grid-container-DATA_PASIEN");
+      const cardsContainer = document.getElementById("cards-container-DATA_PASIEN");
+
+      if (mode === "grid") {
+        gridContainer.style.display = "block";
+        cardsContainer.style.display = "none";
+      } else {
+        gridContainer.style.display = "none";
+        cardsContainer.style.display = "block";
+        renderCardsPatients();
+      }
+    }
+
+    // Open Add Modal according to active sheet
+    function openAddModal() {
+      if (state.activeSheet === "DATA_PASIEN") {
+        document.getElementById("modal-patient-title").innerHTML = `<i class="fas fa-user-plus"></i> Tambah Pasien Baru SIMGOS`;
+        document.getElementById("form-patient").reset();
+        document.getElementById("p-row-number").value = "";
+        document.getElementById("p-tgl-masuk").value = new Date().toISOString().substring(0, 10);
+        openModal("modal-patient");
+      } else if (state.activeSheet === "SETTING") {
+        showToast("Klik tombol Edit pada baris setting yang ingin diubah", "info");
+      } else if (state.activeSheet === "CUSTOM_FORMAT") {
+        showToast("Pilih salah satu template pesan untuk diedit", "info");
+      } else if (state.activeSheet === "CUSTOM_PROMPT") {
+        showToast("Pilih system prompt untuk dimodifikasi", "info");
+      }
+    }
+
+    // Tab Switching
+    function switchTab(sheetName) {
+      state.activeSheet = sheetName;
+      document.querySelectorAll(".sheet-tab").forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.sheet === sheetName);
+      });
+      document.querySelectorAll(".mobile-nav-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.sheet === sheetName);
+      });
+      document.querySelectorAll(".sheet-view-wrapper").forEach(view => {
+        view.classList.toggle("active", view.id === `view-${sheetName}`);
+      });
+      updateRowCountStatus();
+    }
+
+    // Fetch All Data from Server
+    async function loadAllData(showNotification = false) {
+      try {
+        const res = await fetch("/api/data");
+        const json = await res.json();
+        if (json.status === "success") {
+          state.patients = json.data.patients || [];
+          state.settings = json.data.settings || [];
+          state.templates = json.data.templates || [];
+          state.prompts = json.data.prompts || [];
+          state.lastSync = json.data.lastSync;
+
+          // Update Badges
+          document.getElementById("badge-patients-count").textContent = state.patients.length;
+          document.getElementById("badge-settings-count").textContent = state.settings.length;
+          document.getElementById("badge-templates-count").textContent = state.templates.length;
+          document.getElementById("badge-prompts-count").textContent = state.prompts.length;
+
+          renderTablePatients();
+          renderCardsPatients();
+          renderTableSettings();
+          renderTableTemplates();
+          renderTablePrompts();
+          updateRowCountStatus();
+          initRowDragAndDrop();
+
+          if (showNotification) showToast(`Data berhasil dimuat (${state.patients.length} pasien)`);
+        }
+      } catch (err) {
+        showToast(`Gagal memuat data: ${err.message}`, "error");
+      }
+    }
+
+    function getFilteredPatients() {
+      let filtered = [...state.patients];
+
+      // Quick Filters
+      if (state.activeFilter === "h2") {
+        const now = new Date();
+        const h2Date = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+        filtered = filtered.filter(p => p.tglKontrol === h2Date || p.tglReschedule === h2Date);
+      } else if (state.activeFilter === "h1") {
+        const now = new Date();
+        const h1Date = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+        filtered = filtered.filter(p => p.tglKontrol === h1Date || p.tglReschedule === h1Date);
+      } else if (state.activeFilter === "reschedule") {
+        filtered = filtered.filter(p => (p.statusReschedule && p.statusReschedule !== "-") || (p.tglReschedule && p.tglReschedule !== "-"));
+      } else if (state.activeFilter === "rujukan_aktif") {
+        filtered = filtered.filter(p => p.statusRujukan && p.statusRujukan.toLowerCase().includes("aktif"));
+      } else if (state.activeFilter === "unlinked") {
+        filtered = filtered.filter(p => !p.noLid || p.noLid === "-" || p.noLid.length < 13);
+      }
+
+      // Search Query Filter
+      if (state.searchQuery) {
+        const q = state.searchQuery.toLowerCase();
+        filtered = filtered.filter(p => 
+          (p.namaPasien && p.namaPasien.toLowerCase().includes(q)) ||
+          (p.noRm && p.noRm.toLowerCase().includes(q)) ||
+          (p.cleanPhone && p.cleanPhone.includes(q)) ||
+          (p.noLid && p.noLid.includes(q)) ||
+          (p.tglKontrol && p.tglKontrol.includes(q))
+        );
+      }
+
+      return filtered;
+    }
+
+    // Render Sheet 1: DATA_PASIEN (Grid View)
+    function renderTablePatients() {
+      const tbody = document.getElementById("tbody-DATA_PASIEN");
+      if (!tbody) return;
+
+      const filtered = getFilteredPatients();
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="21" class="empty-state" style="text-align: center; padding: 24px; color: var(--text-muted);"><i class="fas fa-inbox"></i> Tidak ada data pasien yang cocok dengan filter / pencarian.</td></tr>`;
+        return;
+      }
+
+      let html = "";
+      filtered.forEach((p, idx) => {
+        const rowNum = idx + 2;
+        const isLidLinked = p.noLid && p.noLid !== "-" && p.noLid.length >= 13;
+        const hasResched = p.tglReschedule && p.tglReschedule !== "-";
+
+        html += `
+          <tr data-row="${p.rowNumber}" draggable="true" data-sheet="DATA_PASIEN" data-row-idx="${idx}">
+            <td class="row-num-cell"><span class="row-drag-handle" title="Tahan & geser untuk memindahkan baris (Drag to reorder)"><i class="fas fa-grip-vertical"></i> ${rowNum}</span></td>
+            <td class="cell" data-coord="A${rowNum}" onclick="selectCell(this, 'A${rowNum}')" ondblclick="startInlineEdit(this, 'timestamp', ${p.rowNumber}, 'DATA_PASIEN')">${p.timestamp || "-"}</td>
+            <td class="cell font-mono" data-coord="B${rowNum}" onclick="selectCell(this, 'B${rowNum}')" ondblclick="startInlineEdit(this, 'noRm', ${p.rowNumber}, 'DATA_PASIEN')"><strong>${p.noRm || "-"}</strong></td>
+            <td class="cell fw-600" data-coord="C${rowNum}" onclick="selectCell(this, 'C${rowNum}')" ondblclick="startInlineEdit(this, 'namaPasien', ${p.rowNumber}, 'DATA_PASIEN')">${p.namaPasien || "-"}</td>
+            <td class="cell" data-coord="D${rowNum}" onclick="selectCell(this, 'D${rowNum}')" ondblclick="startInlineEdit(this, 'tglMasuk', ${p.rowNumber}, 'DATA_PASIEN')">${p.tglMasuk || "-"}</td>
+            <td class="cell fw-600 ${hasResched ? 'text-strikethrough text-muted' : 'text-accent'}" data-coord="E${rowNum}" onclick="selectCell(this, 'E${rowNum}')" ondblclick="startInlineEdit(this, 'tglKontrol', ${p.rowNumber}, 'DATA_PASIEN')">${p.tglKontrol || "-"}</td>
+            <td class="cell font-mono" data-coord="F${rowNum}" onclick="selectCell(this, 'F${rowNum}')" ondblclick="startInlineEdit(this, 'noHp', ${p.rowNumber}, 'DATA_PASIEN')">
+              <a href="https://wa.me/${p.cleanPhone || p.noHp}" target="_blank" style="color: #38bdf8; text-decoration: none;">
+                <i class="fab fa-whatsapp"></i> ${p.cleanPhone || p.noHp || "-"}
+              </a>
+            </td>
+            <td class="cell" data-coord="G${rowNum}" onclick="selectCell(this, 'G${rowNum}')" ondblclick="startInlineEdit(this, 'tempatTglLahir', ${p.rowNumber}, 'DATA_PASIEN')">${p.tempatTglLahir || "-"}</td>
+            <td class="cell text-center" data-coord="H${rowNum}" onclick="selectCell(this, 'H${rowNum}')" ondblclick="startInlineEdit(this, 'umur', ${p.rowNumber}, 'DATA_PASIEN')">${p.umur || "-"}</td>
+            <td class="cell text-center" data-coord="I${rowNum}" onclick="selectCell(this, 'I${rowNum}')" ondblclick="startInlineEdit(this, 'agama', ${p.rowNumber}, 'DATA_PASIEN')">${p.agama || "-"}</td>
+            <td class="cell text-center" data-coord="J${rowNum}" onclick="selectCell(this, 'J${rowNum}')" ondblclick="startInlineEdit(this, 'jenisKelamin', ${p.rowNumber}, 'DATA_PASIEN')">${p.jenisKelamin || "-"}</td>
+            <td class="cell text-center" data-coord="K${rowNum}" onclick="selectCell(this, 'K${rowNum}')" ondblclick="startInlineEdit(this, 'statusWaH2', ${p.rowNumber}, 'DATA_PASIEN')"><span class="badge ${getBadgeClass(p.statusWaH2)}">${p.statusWaH2 || "-"}</span></td>
+            <td class="cell text-center" data-coord="L${rowNum}" onclick="selectCell(this, 'L${rowNum}')" ondblclick="startInlineEdit(this, 'statusDokterH2', ${p.rowNumber}, 'DATA_PASIEN')"><span class="badge ${getBadgeClass(p.statusDokterH2)}">${p.statusDokterH2 || "-"}</span></td>
+            <td class="cell text-center" data-coord="M${rowNum}" onclick="selectCell(this, 'M${rowNum}')" ondblclick="startInlineEdit(this, 'statusWaH1', ${p.rowNumber}, 'DATA_PASIEN')"><span class="badge ${getBadgeClass(p.statusWaH1)}">${p.statusWaH1 || "-"}</span></td>
+            <td class="cell text-center" data-coord="N${rowNum}" onclick="selectCell(this, 'N${rowNum}')" ondblclick="startInlineEdit(this, 'statusDokterH1', ${p.rowNumber}, 'DATA_PASIEN')"><span class="badge ${getBadgeClass(p.statusDokterH1)}">${p.statusDokterH1 || "-"}</span></td>
+            <td class="cell font-mono" data-coord="O${rowNum}" onclick="selectCell(this, 'O${rowNum}')" ondblclick="startInlineEdit(this, 'noSender', ${p.rowNumber}, 'DATA_PASIEN')">${p.noSender || "-"}</td>
+            <td class="cell" data-coord="P${rowNum}" onclick="selectCell(this, 'P${rowNum}')" ondblclick="startInlineEdit(this, 'statusReschedule', ${p.rowNumber}, 'DATA_PASIEN')">${p.statusReschedule || "-"}</td>
+            <td class="cell text-center" data-coord="Q${rowNum}" onclick="selectCell(this, 'Q${rowNum}')" ondblclick="startInlineEdit(this, 'statusRujukan', ${p.rowNumber}, 'DATA_PASIEN')"><span class="badge ${p.statusRujukan && p.statusRujukan.includes('Aktif') ? 'badge-success' : 'badge-danger'}">${p.statusRujukan || "-"}</span></td>
+            <td class="cell font-mono" data-coord="R${rowNum}" onclick="selectCell(this, 'R${rowNum}')" ondblclick="startInlineEdit(this, 'noLid', ${p.rowNumber}, 'DATA_PASIEN')">
+              ${isLidLinked ? `<span class="badge badge-info"><i class="fas fa-link"></i> ${p.noLid}</span>` : `<span class="badge badge-warning"><i class="fas fa-unlink"></i> Belum Link</span>`}
+            </td>
+            <td class="cell fw-600 ${hasResched ? 'text-success' : ''}" data-coord="S${rowNum}" onclick="selectCell(this, 'S${rowNum}')" ondblclick="startInlineEdit(this, 'tglReschedule', ${p.rowNumber}, 'DATA_PASIEN')">
+              ${hasResched ? `<i class="fas fa-calendar-alt"></i> ${p.tglReschedule}` : "-"}
+            </td>
+            <td class="action-cell">
+              <button class="btn-cell-action" onclick="editPatient(${p.rowNumber})" title="Edit Pasien"><i class="fas fa-edit"></i></button>
+              <button class="btn-cell-action btn-cell-action-del" onclick="deletePatient(${p.rowNumber})" title="Hapus Pasien"><i class="fas fa-trash-alt"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Render Sheet 1: DATA_PASIEN (Glassmorphic Mobile & Tablet Cards View)
+    function renderCardsPatients() {
+      const grid = document.getElementById("cards-grid-DATA_PASIEN");
+      if (!grid) return;
+
+      const filtered = getFilteredPatients();
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);"><i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 8px;"></i><p>Tidak ada data pasien yang cocok.</p></div>`;
+        return;
+      }
+
+      let html = "";
+      filtered.forEach(p => {
+        const initials = p.namaPasien ? p.namaPasien.trim().split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "PX";
+        const hasResched = p.tglReschedule && p.tglReschedule !== "-";
+        const isLidLinked = p.noLid && p.noLid !== "-" && p.noLid.length >= 13;
+        const cleanPhone = p.cleanPhone || p.noHp;
+
+        html += `
+          <div class="patient-card-glass">
+            <div class="card-top-row">
+              <div class="card-patient-meta">
+                <div class="patient-avatar">${initials}</div>
+                <div class="card-name-group">
+                  <h3>${p.namaPasien}</h3>
+                  <span class="card-rm-badge">RM: ${p.noRm}</span>
+                </div>
+              </div>
+              <span class="badge ${p.statusRujukan && p.statusRujukan.includes('Aktif') ? 'badge-success' : 'badge-danger'}">
+                ${p.statusRujukan || 'Rujukan Aktif'}
+              </span>
+            </div>
+
+            <div class="card-info-grid">
+              <div class="card-info-item">
+                <span class="card-info-label">Jadwal Kontrol</span>
+                <span class="card-info-value fw-600 ${hasResched ? 'text-strikethrough text-muted' : 'text-accent'}">
+                  <i class="far fa-calendar-alt"></i> ${p.tglKontrol || '-'}
+                </span>
+              </div>
+              <div class="card-info-item">
+                <span class="card-info-label">Jadwal Baru / Reschedule</span>
+                <span class="card-info-value fw-600 ${hasResched ? 'text-success' : 'text-dim'}">
+                  ${hasResched ? `<i class="fas fa-calendar-check"></i> ${p.tglReschedule}` : '-'}
+                </span>
+              </div>
+              <div class="card-info-item">
+                <span class="card-info-label">Umur / Kelamin</span>
+                <span class="card-info-value">${p.umur || '-'} Thn / ${p.jenisKelamin || '-'}</span>
+              </div>
+              <div class="card-info-item">
+                <span class="card-info-label">WhatsApp</span>
+                <span class="card-info-value font-mono">${cleanPhone || '-'}</span>
+              </div>
+            </div>
+
+            <div class="card-chips-row">
+              <span class="badge ${getBadgeClass(p.statusWaH2)}">WA H-2: ${p.statusWaH2 || '-'}</span>
+              <span class="badge ${getBadgeClass(p.statusWaH1)}">WA H-1: ${p.statusWaH1 || '-'}</span>
+              ${isLidLinked ? `<span class="badge badge-info"><i class="fas fa-link"></i> LID Terhubung</span>` : `<span class="badge badge-warning"><i class="fas fa-unlink"></i> Belum Link</span>`}
+            </div>
+
+            <div class="card-actions-row">
+              ${cleanPhone ? `
+                <a href="https://wa.me/${cleanPhone}" target="_blank" class="btn btn-sm btn-wa-direct" title="Chat WhatsApp">
+                  <i class="fab fa-whatsapp"></i> Chat WA
+                </a>
+              ` : ''}
+              <button class="btn btn-sm btn-secondary" onclick="quickReschedulePrompt('${p.noRm}', '${p.namaPasien}')" title="Reschedule Cepat">
+                <i class="fas fa-history"></i> Reschedule
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="editPatient(${p.rowNumber})" title="Edit Detail">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      grid.innerHTML = html;
+    }
+
+    function quickReschedulePrompt(noRm, nama) {
+      const newDate = prompt(`Jadwalkan ulang pasien ${nama} (RM: ${noRm}):\nMasukkan tanggal baru (Format: YYYY-MM-DD):`, new Date().toISOString().substring(0, 10));
+      if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+        fetch(`/api?action=reschedule_patient&noRm=${encodeURIComponent(noRm)}&newDate=${newDate}`)
+          .then(r => r.json())
+          .then(res => {
+            if (res.status === "success") {
+              showToast(res.message);
+              loadAllData();
+            } else {
+              showToast(res.message, "error");
+            }
+          })
+          .catch(e => showToast(e.message, "error"));
+      }
+    }
+
+    function getBadgeClass(status) {
+      if (!status || status === "-" || status === "Pending") return "badge-muted";
+      if (status.toLowerCase().includes("terkirim") || status.toLowerCase().includes("hadir")) return "badge-success";
+      if (status.toLowerCase().includes("reschedule")) return "badge-warning";
+      if (status.toLowerCase().includes("gagal") || status.toLowerCase().includes("terbatalkan")) return "badge-danger";
+      return "badge-info";
+    }
+
+    // Render Sheet 2: SETTING
+    function renderTableSettings() {
+      const tbody = document.getElementById("tbody-SETTING");
+      if (!tbody) return;
+
+      let html = "";
+      state.settings.forEach((s, idx) => {
+        const rowNum = idx + 2;
+        html += `
+          <tr draggable="true" data-sheet="SETTING" data-row-idx="${idx}">
+            <td class="row-num-cell"><span class="row-drag-handle" title="Tahan & geser untuk memindahkan baris (Drag to reorder)"><i class="fas fa-grip-vertical"></i> ${rowNum}</span></td>
+            <td class="cell font-mono fw-600 text-accent" data-coord="A${rowNum}" onclick="selectCell(this, 'A${rowNum}')" ondblclick="startInlineEdit(this, 'parameter', ${rowNum}, 'SETTING')">${s.parameter}</td>
+            <td class="cell font-mono" data-coord="B${rowNum}" onclick="selectCell(this, 'B${rowNum}')" ondblclick="startInlineEdit(this, 'value', ${rowNum}, 'SETTING')">${s.value}</td>
+            <td class="cell" data-coord="C${rowNum}" onclick="selectCell(this, 'C${rowNum}')" ondblclick="startInlineEdit(this, 'keterangan', ${rowNum}, 'SETTING')">${s.keterangan || "-"}</td>
+            <td class="action-cell">
+              <button class="btn-cell-action" onclick="editSetting('${s.parameter}')" title="Edit Setting"><i class="fas fa-edit"></i></button>
+              <button class="btn-cell-action btn-cell-action-del" onclick="deleteSetting('${s.parameter}')" title="Hapus Setting"><i class="fas fa-trash-alt"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Render Sheet 3: CUSTOM_FORMAT
+    function renderTableTemplates() {
+      const tbody = document.getElementById("tbody-CUSTOM_FORMAT");
+      if (!tbody) return;
+
+      let html = "";
+      state.templates.forEach((t, idx) => {
+        const rowNum = idx + 2;
+        html += `
+          <tr draggable="true" data-sheet="CUSTOM_FORMAT" data-row-idx="${idx}">
+            <td class="row-num-cell"><span class="row-drag-handle" title="Tahan & geser untuk memindahkan baris (Drag to reorder)"><i class="fas fa-grip-vertical"></i> ${rowNum}</span></td>
+            <td class="cell font-mono fw-600 text-accent" data-coord="A${rowNum}" onclick="selectCell(this, 'A${rowNum}')" ondblclick="startInlineEdit(this, 'kodeTemplate', ${rowNum}, 'CUSTOM_FORMAT')">${t.kodeTemplate}</td>
+            <td class="cell fw-600" data-coord="B${rowNum}" onclick="selectCell(this, 'B${rowNum}')" ondblclick="startInlineEdit(this, 'targetPenerima', ${rowNum}, 'CUSTOM_FORMAT')">${t.targetPenerima || "-"}</td>
+            <td class="cell font-mono text-wrap-pre" data-coord="C${rowNum}" onclick="selectCell(this, 'C${rowNum}')" ondblclick="startInlineEdit(this, 'templatePesan', ${rowNum}, 'CUSTOM_FORMAT')">${escapeHtml(t.templatePesan)}</td>
+            <td class="cell font-mono text-dim" data-coord="D${rowNum}" onclick="selectCell(this, 'D${rowNum}')" ondblclick="startInlineEdit(this, 'parameterTersedia', ${rowNum}, 'CUSTOM_FORMAT')">${t.parameterTersedia || "-"}</td>
+            <td class="action-cell">
+              <button class="btn-cell-action" onclick="editTemplate('${t.kodeTemplate}')" title="Edit Template"><i class="fas fa-edit"></i></button>
+              <button class="btn-cell-action btn-cell-action-del" onclick="deleteTemplate('${t.kodeTemplate}')" title="Hapus Template"><i class="fas fa-trash-alt"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Render Sheet 4: CUSTOM_PROMPT
+    function renderTablePrompts() {
+      const tbody = document.getElementById("tbody-CUSTOM_PROMPT");
+      if (!tbody) return;
+
+      let html = "";
+      state.prompts.forEach((pr, idx) => {
+        const rowNum = idx + 2;
+        const isActive = pr.isActive === "TRUE" || pr.isActive === true;
+        html += `
+          <tr draggable="true" data-sheet="CUSTOM_PROMPT" data-row-idx="${idx}">
+            <td class="row-num-cell"><span class="row-drag-handle" title="Tahan & geser untuk memindahkan baris (Drag to reorder)"><i class="fas fa-grip-vertical"></i> ${rowNum}</span></td>
+            <td class="cell font-mono fw-600 text-accent" data-coord="A${rowNum}" onclick="selectCell(this, 'A${rowNum}')" ondblclick="startInlineEdit(this, 'kodePrompt', ${rowNum}, 'CUSTOM_PROMPT')">${pr.kodePrompt}</td>
+            <td class="cell fw-600" data-coord="B${rowNum}" onclick="selectCell(this, 'B${rowNum}')" ondblclick="startInlineEdit(this, 'judul', ${rowNum}, 'CUSTOM_PROMPT')">${pr.judul}</td>
+            <td class="cell font-mono text-wrap-pre" style="white-space: pre-wrap; line-height: 1.45; max-height: 280px; overflow-y: auto; text-align: left;" data-coord="C${rowNum}" onclick="selectCell(this, 'C${rowNum}')" ondblclick="startInlineEdit(this, 'systemPrompt', ${rowNum}, 'CUSTOM_PROMPT')">${escapeHtml(pr.systemPrompt)}</td>
+            <td class="cell text-center" data-coord="D${rowNum}" onclick="selectCell(this, 'D${rowNum}')">
+              <span class="badge ${isActive ? 'badge-success' : 'badge-muted'}">${isActive ? 'TRUE (AKTIF)' : 'FALSE'}</span>
+            </td>
+            <td class="cell" data-coord="E${rowNum}" onclick="selectCell(this, 'E${rowNum}')" ondblclick="startInlineEdit(this, 'keterangan', ${rowNum}, 'CUSTOM_PROMPT')">${pr.keterangan || "-"}</td>
+            <td class="action-cell">
+              <button class="btn-cell-action" onclick="editPrompt('${pr.kodePrompt}')" title="Edit Prompt AI"><i class="fas fa-edit"></i></button>
+              <button class="btn-cell-action btn-cell-action-del" onclick="deletePrompt('${pr.kodePrompt}')" title="Hapus Prompt"><i class="fas fa-trash-alt"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return "";
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Cell Selection & Formula Bar Two-Way Sync
+    function selectCell(element, coord) {
+      document.querySelectorAll(".cell.cell-selected").forEach(c => c.classList.remove("cell-selected"));
+      element.classList.add("cell-selected");
+
+      state.selectedCell.coord = coord;
+      state.selectedCell.value = element.textContent.trim();
+
+      // If format painter is active, apply copied style
+      if (clipboardStyle) {
+        saveCellUndoState(element);
+        Object.keys(clipboardStyle).forEach(prop => {
+          if (clipboardStyle[prop]) element.style[prop] = clipboardStyle[prop];
+        });
+        clipboardStyle = null;
+        const pBtn = document.getElementById('tb-paint-format');
+        if (pBtn) pBtn.classList.remove('active');
+        showToast(`Format berhasil diterapkan ke sel ${coord}`);
+      }
+
+      document.getElementById("cell-address").textContent = coord;
+      const fInput = document.getElementById("formula-input");
+      if (fInput) {
+        fInput.value = state.selectedCell.value;
+        fInput.focus();
+      }
+
+      document.getElementById("stat-active-cell").innerHTML = `Sel: <strong>${coord}</strong>`;
+    }
+
+    // =========================================================================
+    // THEME MANAGEMENT (DEFAULT LIGHT, BLUE CYAN SOFT, DARK)
+    // =========================================================================
+    function changeTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('rskdgm_theme', theme);
+      const sel = document.getElementById('theme-select');
+      if (sel) sel.value = theme;
+      showToast(`Tema diubah: ${theme === 'light' ? 'Terang (Default)' : (theme === 'blue-cyan' ? 'Blue Cyan Soft' : 'Gelap')}`, 'info');
+    }
+
+    // Load initial theme on start (Default Light)
+    const initialTheme = localStorage.getItem('rskdgm_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', initialTheme);
+    window.addEventListener('DOMContentLoaded', () => {
+      const sel = document.getElementById('theme-select');
+      if (sel) sel.value = initialTheme;
+
+      const fInputEl = document.getElementById("formula-input");
+      if (fInputEl) {
+        fInputEl.addEventListener("keydown", function(e) {
+          if (e.key === "Enter") {
+            const val = this.value;
+            const selected = document.querySelector(".cell.cell-selected");
+            if (selected) {
+              selected.textContent = val;
+              showToast(`Sel ${state.selectedCell.coord} diperbarui`);
+            }
+          }
+        });
+      }
+
+      // URL Tab Router (Membuka tab sheet tujuan jika dipanggil dari Admin Dashboard)
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromQuery = urlParams.get('tab');
+      const tabFromHash = window.location.hash ? window.location.hash.replace('#view-', '').replace('#', '') : null;
+      const targetTab = tabFromQuery || tabFromHash;
+      if (targetTab && ['DATA_PASIEN', 'SETTING', 'CUSTOM_FORMAT', 'CUSTOM_PROMPT'].includes(targetTab)) {
+        switchTab(targetTab);
+      }
+
+      // Keyboard Delete / Backspace to Clear Cell Content (Google Sheets style)
+      window.addEventListener('keydown', (e) => {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toUpperCase() : '';
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || document.activeElement.isContentEditable) {
+          return;
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (state.selectedCell && state.selectedCell.coord) {
+            e.preventDefault();
+            clearSelectedCellContent();
+          }
+        }
+      });
+
+      // Init Drag and Drop for Table Rows
+      initRowDragAndDrop();
+    });
+
+    // =========================================================================
+    // REAL-TIME SPREADSHEET CLIPBOARD PASTE HANDLER (GOOGLE SHEETS / EXCEL)
+    // =========================================================================
+    async function handleGlobalSpreadsheetPaste(e) {
+      // Jika pengguna sedang mengetik di input modal form, biarkan paste default
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+      const activeId = document.activeElement ? document.activeElement.id : "";
+      if (document.querySelector(".modal-overlay.active") && (activeTag === "input" || activeTag === "textarea" || activeTag === "select")) {
+        return;
+      }
+      if (activeTag === "input" && activeId === "global-search") {
+        return;
+      }
+
+      const clipboardText = (e.clipboardData || window.clipboardData).getData("text/plain");
+      if (!clipboardText || !clipboardText.trim()) return;
+
+      const lines = clipboardText.trim().split(/\r\n|\r|\n/);
+      if (lines.length === 0) return;
+
+      e.preventDefault();
+
+      const matrix = lines.map(line => line.split("\t"));
+
+      let startRow = 2;
+      let startCol = 1;
+
+      if (state.selectedCell && state.selectedCell.coord) {
+        const matchCol = state.selectedCell.coord.match(/^[A-Z]+/);
+        const matchRow = state.selectedCell.coord.match(/[0-9]+$/);
+        if (matchCol && matchRow) {
+          const colLetters = matchCol[0];
+          let colNum = 0;
+          for (let i = 0; i < colLetters.length; i++) {
+            colNum = colNum * 26 + (colLetters.charCodeAt(i) - 64);
+          }
+          startCol = Math.max(1, colNum);
+          startRow = Math.max(2, parseInt(matchRow[0]) || 2);
+        }
+      }
+
+      showToast(`Sedang menempelkan & menyinkronkan ${matrix.length} baris ke Upstash Redis...`, "info");
+
+      try {
+        const res = await fetch("/api", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "batch_paste",
+            sheet: state.activeSheet,
+            startRow: startRow,
+            startCol: startCol,
+            matrix: matrix
+          })
+        });
+
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(`Berhasil! ${json.message || matrix.length + ' baris tersimpan di Redis L1'}`, "success");
+          await loadAllData(false);
+
+          setTimeout(() => {
+            const table = document.getElementById(`table-${state.activeSheet}`);
+            if (table) {
+              const rows = table.querySelectorAll("tbody tr");
+              for (let r = 0; r < matrix.length; r++) {
+                const targetRowIndex = (startRow - 2) + r;
+                if (rows[targetRowIndex]) {
+                  const cells = rows[targetRowIndex].querySelectorAll(".cell");
+                  for (let c = 0; c < matrix[r].length; c++) {
+                    const targetCellIndex = (startCol - 1) + c;
+                    if (cells[targetCellIndex]) {
+                      cells[targetCellIndex].classList.add("cell-pasted-flash");
+                      setTimeout(() => cells[targetCellIndex].classList.remove("cell-pasted-flash"), 1500);
+                    }
+                  }
+                }
+              }
+            }
+          }, 100);
+        } else {
+          showToast(json.message || "Gagal menyimpan paste data ke database", "error");
+        }
+      } catch (err) {
+        console.error("Paste sync error:", err);
+        showToast("Gagal menyinkronkan paste data: " + err.message, "error");
+      }
+    }
+
+    window.addEventListener("paste", handleGlobalSpreadsheetPaste);
+
+    // =========================================================================
+    // APPEND ROWS ACTION (GOOGLE SHEETS INFINITE ROW EXPANSION)
+    // =========================================================================
+    async function appendRowsAction(count = 100) {
+      showToast(`Menambahkan ${count} baris kosong ke sheet ${state.activeSheet}...`, "info");
+      try {
+        const res = await fetch("/api", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "append_empty_rows",
+            sheet: state.activeSheet,
+            count: count
+          })
+        });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(json.message || `Berhasil menambahkan ${count} baris.`);
+          await loadAllData(false);
+        } else {
+          showToast(json.message || "Gagal menambah baris", "error");
+        }
+      } catch (e) {
+        showToast("Gagal menambah baris: " + e.message, "error");
+      }
+    }
+
+    function appendRowsCustom(sheetName) {
+      const input = document.getElementById(`append-rows-count-${sheetName}`);
+      const val = input ? parseInt(input.value) : 100;
+      appendRowsAction(Math.max(1, Math.min(1000, val || 100)));
+    }
+
+    // =========================================================================
+    // GOOGLE SHEETS PRECISION FORMATTING TOOLBAR HANDLERS (GAMBAR 1)
+    // =========================================================================
+    let clipboardStyle = null;
+    let formatUndoStack = [];
+    let formatRedoStack = [];
+
+    function saveCellUndoState(cell) {
+      if (!cell) return;
+      formatUndoStack.push({
+        cell: cell,
+        style: cell.getAttribute('style') || '',
+        text: cell.textContent
+      });
+      if (formatUndoStack.length > 50) formatUndoStack.shift();
+    }
+
+    function sheetFormatUndo() {
+      if (formatUndoStack.length === 0) {
+        showToast('Tidak ada tindakan untuk diurungkan', 'info');
+        return;
+      }
+      const last = formatUndoStack.pop();
+      formatRedoStack.push({
+        cell: last.cell,
+        style: last.cell.getAttribute('style') || '',
+        text: last.cell.textContent
+      });
+      if (last.style) last.cell.setAttribute('style', last.style);
+      else last.cell.removeAttribute('style');
+      last.cell.textContent = last.text;
+      showToast('Urungkan (Undo) berhasil');
+    }
+
+    function sheetFormatRedo() {
+      if (formatRedoStack.length === 0) {
+        showToast('Tidak ada tindakan untuk diulangi', 'info');
+        return;
+      }
+      const next = formatRedoStack.pop();
+      formatUndoStack.push({
+        cell: next.cell,
+        style: next.cell.getAttribute('style') || '',
+        text: next.cell.textContent
+      });
+      if (next.style) next.cell.setAttribute('style', next.style);
+      else next.cell.removeAttribute('style');
+      next.cell.textContent = next.text;
+      showToast('Ulangi (Redo) berhasil');
+    }
+
+    function getActiveOrHoverCell() {
+      return document.querySelector('.cell.cell-selected') || document.querySelector('.cell');
+    }
+
+    function toggleCellBold() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      const isBold = cell.style.fontWeight === 'bold' || cell.style.fontWeight === '700';
+      cell.style.fontWeight = isBold ? 'normal' : 'bold';
+      document.getElementById('tb-btn-bold').classList.toggle('active', !isBold);
+      showToast(`Bold ${!isBold ? 'aktif' : 'nonaktif'}`);
+    }
+
+    function toggleCellItalic() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      const isItalic = cell.style.fontStyle === 'italic';
+      cell.style.fontStyle = isItalic ? 'normal' : 'italic';
+      document.getElementById('tb-btn-italic').classList.toggle('active', !isItalic);
+      showToast(`Italic ${!isItalic ? 'aktif' : 'nonaktif'}`);
+    }
+
+    function toggleCellStrike() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      const isStrike = cell.style.textDecoration.includes('line-through');
+      cell.style.textDecoration = isStrike ? 'none' : 'line-through';
+      document.getElementById('tb-btn-strike').classList.toggle('active', !isStrike);
+      showToast(`Coret ${!isStrike ? 'aktif' : 'nonaktif'}`);
+    }
+
+    function applyCellTextColor(color) {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      cell.style.color = color;
+      const bar = document.getElementById('tb-text-color-bar');
+      if (bar) bar.style.background = color;
+      showToast(`Warna teks sel diubah: ${color}`);
+    }
+
+    function applyCellFillColor(color) {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      cell.style.backgroundColor = color;
+      const bar = document.getElementById('tb-fill-color-bar');
+      if (bar) bar.style.background = color;
+      showToast(`Warna isi sel diubah: ${color}`);
+    }
+
+    function stepFontSize(delta) {
+      const input = document.getElementById('tb-font-size');
+      let current = parseInt(input.value) || 12;
+      current = Math.max(8, Math.min(36, current + delta));
+      input.value = current;
+      applyCellFontSize(current);
+    }
+
+    function applyCellFontSize(size) {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      cell.style.fontSize = size + 'px';
+      showToast(`Ukuran font diubah: ${size}px`);
+    }
+
+    function applyCellFontFamily(font) {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      cell.style.fontFamily = font;
+      showToast(`Font sel diubah`);
+    }
+
+    function applyCellAlign(align) {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      cell.style.textAlign = align;
+      ['left', 'center', 'right'].forEach(a => {
+        const btn = document.getElementById(`tb-align-${a}`);
+        if (btn) btn.classList.toggle('active', a === align);
+      });
+      showToast(`Rata teks: ${align}`);
+    }
+
+    function applyCellVerticalAlign() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      const current = cell.style.verticalAlign;
+      const next = current === 'top' ? 'middle' : (current === 'middle' ? 'bottom' : 'top');
+      cell.style.verticalAlign = next;
+      showToast(`Perataan vertikal: ${next}`);
+    }
+
+    function toggleCellWrap() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      const isWrap = cell.style.whiteSpace === 'normal';
+      cell.style.whiteSpace = isWrap ? 'nowrap' : 'normal';
+      document.getElementById('tb-text-wrap').classList.toggle('active', !isWrap);
+      showToast(`Text wrap: ${!isWrap ? 'Aktif' : 'Nonaktif'}`);
+    }
+
+    function applyTextRotation() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      const current = cell.style.transform;
+      cell.style.transform = current ? '' : 'rotate(-15deg)';
+      showToast('Rotasi teks diterapkan');
+    }
+
+    function applyCellBorder() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      const hasBorder = cell.style.border === '2px solid rgb(2, 132, 199)' || cell.style.border === '2px solid var(--accent)';
+      cell.style.border = hasBorder ? '' : '2px solid var(--accent)';
+      showToast('Border sel diperbarui');
+    }
+
+    function applyCellMerge() {
+      showToast('Fitur Gabung Sel (Merge): Sel aktif telah dikunci ke layout header', 'info');
+    }
+
+    function sheetFormatPainter() {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      clipboardStyle = {
+        fontWeight: cell.style.fontWeight,
+        fontStyle: cell.style.fontStyle,
+        textDecoration: cell.style.textDecoration,
+        color: cell.style.color,
+        backgroundColor: cell.style.backgroundColor,
+        fontSize: cell.style.fontSize,
+        fontFamily: cell.style.fontFamily,
+        textAlign: cell.style.textAlign
+      };
+      document.getElementById('tb-paint-format').classList.add('active');
+      showToast('Format cat disalin! Klik sel tujuan untuk menerapkan format', 'info');
+    }
+
+    function setSheetZoom(val) {
+      const zoom = parseInt(val) / 100;
+      const tables = document.querySelectorAll('.spreadsheet-table');
+      tables.forEach(t => {
+        t.style.zoom = zoom;
+      });
+      showToast(`Zoom diubah ke ${val}%`);
+    }
+
+    function applyCellFormat(type) {
+      const cell = getActiveOrHoverCell();
+      if (!cell) return;
+      saveCellUndoState(cell);
+      let text = cell.textContent.trim();
+      let num = parseFloat(text.replace(/[^0-9.-]+/g, ""));
+      if (isNaN(num)) num = 1000;
+
+      if (type === 'currency') {
+        cell.textContent = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+      } else if (type === 'percent') {
+        cell.textContent = (num / 100).toLocaleString('id-ID', { style: 'percent', minimumFractionDigits: 1 });
+      } else if (type === 'dec-decrease') {
+        cell.textContent = Math.round(num);
+      } else if (type === 'dec-increase') {
+        cell.textContent = num.toFixed(2);
+      } else if (type === 'number') {
+        cell.textContent = num.toLocaleString('id-ID');
+      }
+      showToast(`Format ${type} diterapkan`);
+    }
+
+    function insertLinkPrompt() {
+      const url = prompt('Masukkan URL tautan:', 'https://');
+      if (url) {
+        const cell = getActiveOrHoverCell();
+        if (cell) {
+          saveCellUndoState(cell);
+          const txt = cell.textContent || url;
+          cell.innerHTML = `<a href="${url}" target="_blank" style="color:var(--accent);text-decoration:underline;">${txt}</a>`;
+          showToast('Tautan berhasil disisipkan');
+        }
+      }
+    }
+
+    function insertCommentPrompt() {
+      const comment = prompt('Tambahkan catatan/komentar pada sel ini:');
+      if (comment) {
+        const cell = getActiveOrHoverCell();
+        if (cell) {
+          cell.setAttribute('title', `Catatan: ${comment}`);
+          cell.style.boxShadow = 'inset 0 0 0 2px var(--warning)';
+          showToast('Komentar sel berhasil disimpan');
+        }
+      }
+    }
+
+    function toggleFilterBar() {
+      const toolbar = document.querySelector('.action-toolbar');
+      if (toolbar) {
+        toolbar.scrollIntoView({ behavior: 'smooth' });
+        showToast('Filter bar aktif');
+      }
+    }
+
+    function insertFunctionPrompt() {
+      const fn = prompt('Pilih formula (SUM, AVERAGE, COUNT, MAX, MIN):', '=SUM(H2:H243)');
+      if (fn) {
+        const fInput = document.getElementById('formula-input');
+        if (fInput) {
+          fInput.value = fn;
+          fInput.focus();
+        }
+        showToast(`Formula disisipkan: ${fn}`);
+      }
+    }
+
+    // Filters and Search
+    function applyFilter(filterName) {
+      state.activeFilter = filterName;
+      document.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.filter === filterName);
+      });
+      renderTablePatients();
+      renderCardsPatients();
+      updateRowCountStatus();
+    }
+
+    function handleSearch(val) {
+      state.searchQuery = val.trim();
+      const clearBtn = document.getElementById("search-clear");
+      if (clearBtn) clearBtn.style.display = state.searchQuery ? "inline-block" : "none";
+      renderTablePatients();
+      renderCardsPatients();
+      updateRowCountStatus();
+    }
+
+    function clearSearch() {
+      document.getElementById("global-search").value = "";
+      handleSearch("");
+    }
+
+    function updateRowCountStatus() {
+      const el = document.getElementById("stat-row-count");
+      if (!el) return;
+      let count = 0;
+      if (state.activeSheet === "DATA_PASIEN") count = state.patients.length;
+      else if (state.activeSheet === "SETTING") count = state.settings.length;
+      else if (state.activeSheet === "CUSTOM_FORMAT") count = state.templates.length;
+      else if (state.activeSheet === "CUSTOM_PROMPT") count = state.prompts.length;
+      el.innerHTML = `Total: <strong>${count}</strong> Baris`;
+    }
+
+    // CRUD: Save Patient
+    async function savePatient(e) {
+      e.preventDefault();
+      const rowNum = document.getElementById("p-row-number").value;
+      const isEdit = !!rowNum;
+
+      const payload = {
+        noRm: document.getElementById("p-no-rm").value.trim(),
+        namaPasien: document.getElementById("p-nama-pasien").value.trim(),
+        tglMasuk: document.getElementById("p-tgl-masuk").value,
+        tglKontrol: document.getElementById("p-tgl-kontrol").value,
+        tempatTglLahir: document.getElementById("p-tempat-tgl-lahir").value.trim(),
+        umur: document.getElementById("p-umur").value.trim(),
+        agama: document.getElementById("p-agama").value,
+        jenisKelamin: document.getElementById("p-jk").value,
+        statusRujukan: document.getElementById("p-status-rujukan").value,
+        cleanPhone: document.getElementById("p-no-hp").value.trim(),
+        noHp: document.getElementById("p-no-hp").value.trim(),
+        noLid: document.getElementById("p-no-lid").value.trim(),
+        noSender: document.getElementById("p-no-sender").value.trim(),
+        statusWaH2: document.getElementById("p-status-wa-h2").value,
+        statusDokterH2: document.getElementById("p-status-doc-h2").value,
+        statusWaH1: document.getElementById("p-status-wa-h1").value,
+        statusDokterH1: document.getElementById("p-status-doc-h1").value,
+        statusReschedule: document.getElementById("p-status-reschedule").value.trim(),
+        tglReschedule: document.getElementById("p-tgl-reschedule").value
+      };
+
+      try {
+        const url = isEdit ? `/api/crud/patient/${rowNum}` : `/api/crud/patient`;
+        const method = isEdit ? "PUT" : "POST";
+        const res = await fetch(url, {
+          method: method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(json.message || "Data pasien berhasil disimpan");
+          closeModal("modal-patient");
+          loadAllData();
+        } else {
+          showToast(json.message || "Gagal menyimpan pasien", "error");
+        }
+      } catch (err) {
+        showToast(`Error: ${err.message}`, "error");
+      }
+    }
+
+    function editPatient(rowNumber) {
+      const p = state.patients.find(x => x.rowNumber === rowNumber);
+      if (!p) return;
+
+      document.getElementById("modal-patient-title").innerHTML = `<i class="fas fa-user-edit"></i> Edit Pasien: ${p.namaPasien} (${p.noRm})`;
+      document.getElementById("p-row-number").value = p.rowNumber;
+      document.getElementById("p-no-rm").value = p.noRm || "";
+      document.getElementById("p-nama-pasien").value = p.namaPasien || "";
+      document.getElementById("p-tgl-masuk").value = p.tglMasuk || "";
+      document.getElementById("p-tgl-kontrol").value = p.tglKontrol || "";
+      document.getElementById("p-tempat-tgl-lahir").value = p.tempatTglLahir || "";
+      document.getElementById("p-umur").value = p.umur || "";
+      document.getElementById("p-agama").value = p.agama || "Islam";
+      document.getElementById("p-jk").value = p.jenisKelamin || "P";
+      document.getElementById("p-status-rujukan").value = p.statusRujukan || "Rujukan Aktif";
+      document.getElementById("p-no-hp").value = p.cleanPhone || p.noHp || "";
+      document.getElementById("p-no-lid").value = p.noLid || "";
+      document.getElementById("p-no-sender").value = p.noSender || "";
+      document.getElementById("p-status-wa-h2").value = p.statusWaH2 || "Pending";
+      document.getElementById("p-status-doc-h2").value = p.statusDokterH2 || "Pending";
+      document.getElementById("p-status-wa-h1").value = p.statusWaH1 || "Pending";
+      document.getElementById("p-status-doc-h1").value = p.statusDokterH1 || "Pending";
+      document.getElementById("p-status-reschedule").value = p.statusReschedule || "-";
+      document.getElementById("p-tgl-reschedule").value = (p.tglReschedule && p.tglReschedule !== "-") ? p.tglReschedule : "";
+
+      openModal("modal-patient");
+    }
+
+    async function deletePatient(rowNumber) {
+      const p = state.patients.find(x => x.rowNumber === rowNumber);
+      if (!p) return;
+      if (!confirm(`Hapus data pasien ${p.namaPasien} (${p.noRm}) dari database?`)) return;
+
+      try {
+        const res = await fetch(`/api/crud/patient/${rowNumber}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast("Pasien berhasil dihapus");
+          loadAllData();
+        } else {
+          showToast(json.message, "error");
+        }
+      } catch (err) {
+        showToast(`Error: ${err.message}`, "error");
+      }
+    }
+
+    // CRUD: Setting
+    function editSetting(paramKey) {
+      const s = state.settings.find(x => x.parameter === paramKey);
+      if (!s) return;
+
+      document.getElementById("s-param").value = s.parameter;
+      document.getElementById("s-val").value = s.value;
+      document.getElementById("s-ket").value = s.keterangan || "";
+      openModal("modal-setting");
+    }
+
+    async function saveSetting(e) {
+      e.preventDefault();
+      const payload = {
+        parameter: document.getElementById("s-param").value.trim(),
+        value: document.getElementById("s-val").value.trim(),
+        keterangan: document.getElementById("s-ket").value.trim()
+      };
+
+      try {
+        const res = await fetch("/api/crud/setting", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(json.message);
+          closeModal("modal-setting");
+          loadAllData();
+        } else {
+          showToast(json.message, "error");
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // CRUD: Template
+    function editTemplate(code) {
+      const t = state.templates.find(x => x.kodeTemplate === code);
+      if (!t) return;
+
+      document.getElementById("t-code").value = t.kodeTemplate;
+      document.getElementById("t-target").value = t.targetPenerima || "";
+      document.getElementById("t-text").value = t.templatePesan || "";
+      document.getElementById("t-params").value = t.parameterTersedia || "";
+      openModal("modal-template");
+    }
+
+    function insertTag(tag) {
+      const ta = document.getElementById("t-text");
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const val = ta.value;
+      ta.value = val.substring(0, start) + tag + val.substring(end);
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + tag.length;
+    }
+
+    async function saveTemplate(e) {
+      e.preventDefault();
+      const payload = {
+        kodeTemplate: document.getElementById("t-code").value.trim(),
+        targetPenerima: document.getElementById("t-target").value.trim(),
+        templatePesan: document.getElementById("t-text").value,
+        parameterTersedia: document.getElementById("t-params").value.trim()
+      };
+
+      try {
+        const res = await fetch("/api/crud/template", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(json.message);
+          closeModal("modal-template");
+          loadAllData();
+        } else {
+          showToast(json.message, "error");
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // CRUD: Prompt
+    function editPrompt(code) {
+      const pr = state.prompts.find(x => x.kodePrompt === code);
+      if (!pr) return;
+
+      document.getElementById("pr-code").value = pr.kodePrompt;
+      document.getElementById("pr-title").value = pr.judul || "";
+      document.getElementById("pr-text").value = pr.systemPrompt || "";
+      document.getElementById("pr-active").value = pr.isActive ? "TRUE" : "FALSE";
+      document.getElementById("pr-ket").value = pr.keterangan || "";
+      openModal("modal-prompt");
+    }
+
+    async function savePrompt(e) {
+      e.preventDefault();
+      const payload = {
+        kodePrompt: document.getElementById("pr-code").value.trim(),
+        judul: document.getElementById("pr-title").value.trim(),
+        systemPrompt: document.getElementById("pr-text").value,
+        isActive: document.getElementById("pr-active").value === "TRUE",
+        keterangan: document.getElementById("pr-ket").value.trim()
+      };
+
+      try {
+        const res = await fetch("/api/crud/prompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(json.message);
+          closeModal("modal-prompt");
+          loadAllData();
+        } else {
+          showToast(json.message, "error");
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // =========================================================================
+    // CRUD: DELETE HANDLERS FOR SETTING, TEMPLATE, PROMPT
+    // =========================================================================
+    async function deleteSetting(paramKey) {
+      if (!confirm(`Apakah Anda yakin ingin menghapus setting "${paramKey}"?`)) return;
+      try {
+        const res = await fetch(`/api/crud/setting/${encodeURIComponent(paramKey)}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.status === "success") {
+          state.settings = state.settings.filter(s => s.parameter !== paramKey);
+          document.getElementById("badge-settings-count").textContent = state.settings.length;
+          renderTableSettings();
+          showToast(json.message || `Setting ${paramKey} berhasil dihapus.`);
+        } else {
+          showToast(json.message || "Gagal menghapus setting", "error");
+        }
+      } catch (err) {
+        showToast("Error: " + err.message, "error");
+      }
+    }
+
+    async function deleteTemplate(code) {
+      if (!confirm(`Apakah Anda yakin ingin menghapus template "${code}"?`)) return;
+      try {
+        const res = await fetch(`/api/crud/template/${encodeURIComponent(code)}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.status === "success") {
+          state.templates = state.templates.filter(t => t.kodeTemplate !== code);
+          document.getElementById("badge-templates-count").textContent = state.templates.length;
+          renderTableTemplates();
+          showToast(json.message || `Template ${code} berhasil dihapus.`);
+        } else {
+          showToast(json.message || "Gagal menghapus template", "error");
+        }
+      } catch (err) {
+        showToast("Error: " + err.message, "error");
+      }
+    }
+
+    async function deletePrompt(code) {
+      if (!confirm(`Apakah Anda yakin ingin menghapus prompt AI "${code}"?`)) return;
+      try {
+        const res = await fetch(`/api/crud/prompt/${encodeURIComponent(code)}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.status === "success") {
+          state.prompts = state.prompts.filter(p => p.kodePrompt !== code);
+          document.getElementById("badge-prompts-count").textContent = state.prompts.length;
+          renderTablePrompts();
+          showToast(json.message || `Prompt ${code} berhasil dihapus.`);
+        } else {
+          showToast(json.message || "Gagal menghapus prompt", "error");
+        }
+      } catch (err) {
+        showToast("Error: " + err.message, "error");
+      }
+    }
+
+    // =========================================================================
+    // DRAG-AND-DROP ROW REORDERING (GOOGLE SHEETS STYLE)
+    // =========================================================================
+    let dragSrcRow = null;
+    let dragSheetName = null;
+    let dragSrcIdx = -1;
+
+    function initRowDragAndDrop() {
+      ['tbody-DATA_PASIEN', 'tbody-SETTING', 'tbody-CUSTOM_FORMAT', 'tbody-CUSTOM_PROMPT'].forEach(tbodyId => {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+
+        tbody.addEventListener('dragstart', (e) => {
+          const row = e.target.closest('tr[draggable="true"]');
+          if (!row) return;
+          dragSrcRow = row;
+          dragSheetName = row.getAttribute('data-sheet');
+          dragSrcIdx = parseInt(row.getAttribute('data-row-idx'), 10);
+          row.classList.add('row-dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(dragSrcIdx));
+        });
+
+        tbody.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const targetRow = e.target.closest('tr[draggable="true"]');
+          if (!targetRow || targetRow === dragSrcRow) return;
+
+          const rect = targetRow.getBoundingClientRect();
+          const isBelow = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+
+          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+          if (isBelow) targetRow.classList.add('drag-over-bottom');
+          else targetRow.classList.add('drag-over-top');
+        });
+
+        tbody.addEventListener('dragleave', (e) => {
+          const targetRow = e.target.closest('tr');
+          if (targetRow) targetRow.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+
+        tbody.addEventListener('dragend', () => {
+          if (dragSrcRow) dragSrcRow.classList.remove('row-dragging');
+          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom', 'row-dragging'));
+          dragSrcRow = null;
+        });
+
+        tbody.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          const targetRow = e.target.closest('tr[draggable="true"]');
+          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom', 'row-dragging'));
+
+          if (!targetRow || !dragSrcRow || targetRow === dragSrcRow) return;
+
+          const targetIdx = parseInt(targetRow.getAttribute('data-row-idx'), 10);
+          if (isNaN(dragSrcIdx) || isNaN(targetIdx) || dragSrcIdx === targetIdx) return;
+
+          const sheet = dragSheetName;
+          if (sheet === 'DATA_PASIEN') {
+            const [moved] = state.patients.splice(dragSrcIdx, 1);
+            state.patients.splice(targetIdx, 0, moved);
+            state.patients.forEach((p, i) => { p.rowNumber = i + 2; });
+            renderTablePatients();
+          } else if (sheet === 'SETTING') {
+            const [moved] = state.settings.splice(dragSrcIdx, 1);
+            state.settings.splice(targetIdx, 0, moved);
+            renderTableSettings();
+          } else if (sheet === 'CUSTOM_FORMAT') {
+            const [moved] = state.templates.splice(dragSrcIdx, 1);
+            state.templates.splice(targetIdx, 0, moved);
+            renderTableTemplates();
+          } else if (sheet === 'CUSTOM_PROMPT') {
+            const [moved] = state.prompts.splice(dragSrcIdx, 1);
+            state.prompts.splice(targetIdx, 0, moved);
+            renderTablePrompts();
+          }
+
+          showToast(`Baris dipindahkan ke posisi baris ${targetIdx + 2}`, 'info');
+
+          // Sync with Server & Upstash Redis
+          try {
+            await fetch('/api', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'reorder_rows',
+                sheet: sheet,
+                fromIndex: dragSrcIdx,
+                toIndex: targetIdx
+              })
+            });
+          } catch (err) {
+            console.error('Error reordering rows:', err);
+          }
+        });
+      });
+    }
+
+    // =========================================================================
+    // INLINE CELL DOUBLE-CLICK EDITING
+    // =========================================================================
+    function startInlineEdit(cellEl, colKey, rowNum, sheetName) {
+      if (cellEl.querySelector('input.cell-inline-editor')) return;
+      const currentVal = cellEl.textContent.trim();
+      const input = document.createElement('input');
+      input.className = 'cell-inline-editor';
+      input.value = currentVal === '-' ? '' : currentVal;
+      cellEl.innerHTML = '';
+      cellEl.appendChild(input);
+      input.focus();
+      input.select();
+
+      let committed = false;
+      function commit() {
+        if (committed) return;
+        committed = true;
+        const newVal = input.value.trim() || '-';
+        cellEl.textContent = newVal;
+        state.selectedCell.value = newVal;
+        const fInput = document.getElementById('formula-input');
+        if (fInput) fInput.value = newVal;
+
+        if (sheetName === 'DATA_PASIEN') {
+          const patient = state.patients.find(p => p.rowNumber === rowNum);
+          if (patient) {
+            patient[colKey] = newVal;
+            if (colKey === 'noHp') patient.cleanPhone = formatInternationalPhone(newVal);
+          }
+        }
+        showToast(`Sel ${state.selectedCell.coord || colKey + rowNum} diperbarui: ${newVal}`);
+
+        fetch('/api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_cell',
+            sheet: sheetName,
+            row: rowNum,
+            colKey: colKey,
+            value: newVal
+          })
+        }).catch(err => console.error('Inline edit sync error:', err));
+      }
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          commit();
+        } else if (e.key === 'Escape') {
+          committed = true;
+          cellEl.textContent = currentVal;
+        }
+      });
+      input.addEventListener('blur', commit);
+    }
+
+    // =========================================================================
+    // KEYBOARD DELETE / BACKSPACE TO CLEAR CELL CONTENT
+    // =========================================================================
+    function clearSelectedCellContent() {
+      if (!state.selectedCell || !state.selectedCell.coord) return;
+      const coord = state.selectedCell.coord;
+      const cellEl = document.querySelector(`.cell[data-coord="${coord}"]`);
+      if (!cellEl) return;
+
+      const colMatch = coord.match(/^([A-Z]+)(\d+)$/);
+      if (!colMatch) return;
+      const colLetter = colMatch[1];
+      const rowNum = parseInt(colMatch[2], 10);
+
+      // Save Undo
+      saveCellUndoState(cellEl);
+
+      // Optimistic Clear
+      cellEl.textContent = "-";
+      cellEl.classList.add("cell-cleared-flash");
+      setTimeout(() => cellEl.classList.remove("cell-cleared-flash"), 800);
+
+      const fInput = document.getElementById("formula-input");
+      if (fInput) fInput.value = "-";
+      state.selectedCell.value = "-";
+
+      const patientColMap = {
+        'A': 'timestamp', 'B': 'noRm', 'C': 'namaPasien', 'D': 'tglMasuk', 'E': 'tglKontrol',
+        'F': 'noHp', 'G': 'tempatTglLahir', 'H': 'umur', 'I': 'agama', 'J': 'jenisKelamin',
+        'K': 'statusWaH2', 'L': 'statusDokterH2', 'M': 'statusWaH1', 'N': 'statusDokterH1',
+        'O': 'noSender', 'P': 'statusReschedule', 'Q': 'statusRujukan', 'R': 'noLid', 'S': 'tglReschedule'
+      };
+
+      const activeSheet = state.activeSheet || 'DATA_PASIEN';
+      const colKey = patientColMap[colLetter] || colLetter;
+
+      if (activeSheet === 'DATA_PASIEN') {
+        const patient = state.patients.find(p => p.rowNumber === rowNum);
+        if (patient && colKey) {
+          patient[colKey] = "-";
+          if (colKey === 'noHp') patient.cleanPhone = "-";
+        }
+      }
+
+      showToast(`Isi sel ${coord} berhasil dikosongkan (Delete)`);
+
+      fetch('/api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'clear_cell',
+          sheet: activeSheet,
+          row: rowNum,
+          colKey: colKey,
+          value: '-'
+        })
+      }).catch(err => console.error('Clear cell error:', err));
+    }
+
+    // Sync with GAS
+    async function syncWithGAS() {
+      const btn = document.getElementById("btn-sync-pull");
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>Sinkronisasi...</span>`;
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/sync/pull", { method: "POST" });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(json.message);
+          loadAllData();
+        } else {
+          showToast(json.message, "error");
+        }
+      } catch (err) {
+        showToast(`Sync error: ${err.message}`, "error");
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+      }
+    }
+
+    // Export CSV
+    function exportActiveSheetToCSV() {
+      let csvContent = "data:text/csv;charset=utf-8,";
+      let filename = `${state.activeSheet}_${new Date().toISOString().substring(0, 10)}.csv`;
+
+      if (state.activeSheet === "DATA_PASIEN") {
+        const headers = ["Timestamp", "No RM", "Nama Pasien", "Tanggal Masuk", "Tanggal Kontrol", "No WA", "Tempat Tgl Lahir", "Umur", "Agama", "Jenis Kelamin", "Status WA H-2", "Status Dokter H-2", "Status WA H-1", "Status Dokter H-1", "No Sender", "Status Reschedule", "Status Rujukan", "No LID", "Tanggal Reschedule"];
+        csvContent += headers.map(h => `"${h}"`).join(",") + "\r\n";
+
+        state.patients.forEach(p => {
+          const row = [
+            p.timestamp, p.noRm, p.namaPasien, p.tglMasuk, p.tglKontrol, p.cleanPhone || p.noHp,
+            p.tempatTglLahir, p.umur, p.agama, p.jenisKelamin, p.statusWaH2, p.statusDokterH2,
+            p.statusWaH1, p.statusDokterH1, p.noSender, p.statusReschedule, p.statusRujukan,
+            p.noLid, p.tglReschedule
+          ];
+          csvContent += row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",") + "\r\n";
+        });
+      } else if (state.activeSheet === "SETTING") {
+        csvContent += `"PARAMETER","VALUE","KETERANGAN"\r\n`;
+        state.settings.forEach(s => {
+          csvContent += `"${s.parameter}","${String(s.value).replace(/"/g, '""')}","${String(s.keterangan || '').replace(/"/g, '""')}"\r\n`;
+        });
+      } else if (state.activeSheet === "CUSTOM_FORMAT") {
+        csvContent += `"KODE_TEMPLATE","TARGET_PENERIMA","TEMPLATE_PESAN","PARAMETER_TERSEDIA"\r\n`;
+        state.templates.forEach(t => {
+          csvContent += `"${t.kodeTemplate}","${t.targetPenerima}","${String(t.templatePesan).replace(/"/g, '""')}","${t.parameterTersedia}"\r\n`;
+        });
+      }
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showToast(`File CSV ${filename} berhasil diunduh!`);
+    }
+
+    // Toggle Fullscreen
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Initialize on page load
+    window.addEventListener("DOMContentLoaded", () => {
+      loadAllData();
+    });
+  </script>
+</body>
+</html>
