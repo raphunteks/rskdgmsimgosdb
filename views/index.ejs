@@ -844,6 +844,7 @@
       selectionRange: null,
       isSelectingRange: false,
       rangeAnchorCell: null,
+      activeInlineEditor: null,
       searchQuery: "",
       selectedCell: { coord: "A1", row: 1, col: "A", value: "" },
       lastSync: null
@@ -942,6 +943,7 @@
 
     // Fetch All Data from Server
     async function loadAllData(showNotification = false) {
+      cancelActiveInlineEdit();
       try {
         const res = await fetch("/api/data");
         const json = await res.json();
@@ -1669,6 +1671,22 @@
 
       const clipboardText = (e.clipboardData || window.clipboardData).getData("text/plain");
       if (!clipboardText || !clipboardText.trim()) return;
+
+      // Jika paste dilakukan saat kursor berada di dalam kotak inline editor sel:
+      if (document.activeElement && document.activeElement.classList.contains("cell-inline-editor")) {
+        const pasteVal = clipboardText.trim();
+        if (pasteVal && !pasteVal.includes("\t") && !pasteVal.includes("\n")) {
+          e.preventDefault();
+          document.activeElement.value = pasteVal;
+          if (typeof document.activeElement._commit === "function") {
+            document.activeElement._commit(true);
+          }
+          return;
+        }
+      }
+
+      // Pastikan editor inline yang sedang terbuka dibatalkan agar blur tidak mengirim data lama
+      cancelActiveInlineEdit();
 
       const lines = clipboardText.trim().split(/\r\n|\r|\n/);
       if (lines.length === 0) return;
@@ -2587,11 +2605,23 @@
       });
     }
 
+    // Helper: Batalkan inline editor yang sedang aktif tanpa memicu commit basi
+    function cancelActiveInlineEdit() {
+      if (state.activeInlineEditor) {
+        if (typeof state.activeInlineEditor.cancel === 'function') {
+          state.activeInlineEditor.cancel();
+        }
+        state.activeInlineEditor = null;
+      }
+    }
+
     // =========================================================================
     // INLINE CELL DOUBLE-CLICK EDITING
     // =========================================================================
     function startInlineEdit(cellEl, colKey, rowNum, sheetName) {
       if (cellEl.querySelector('input.cell-inline-editor')) return;
+      cancelActiveInlineEdit();
+
       const currentVal = cellEl.textContent.trim();
       const input = document.createElement('input');
       input.className = 'cell-inline-editor';
@@ -2602,10 +2632,31 @@
       input.select();
 
       let committed = false;
-      function commit() {
-        if (committed) return;
+
+      function cancel() {
         committed = true;
+        if (cellEl.contains(input)) {
+          cellEl.textContent = currentVal;
+        }
+      }
+
+      state.activeInlineEditor = { input, cancel };
+
+      function commit(force = false) {
+        if (committed) return;
         const newVal = input.value.trim() || '-';
+
+        // Jika nilai tidak berubah dari nilai awal sel dan tidak dipaksa (force), jangan overwrite ke server!
+        if (!force && newVal === currentVal) {
+          committed = true;
+          cellEl.textContent = currentVal;
+          state.activeInlineEditor = null;
+          return;
+        }
+
+        committed = true;
+        state.activeInlineEditor = null;
+
         cellEl.textContent = newVal;
         state.selectedCell.value = newVal;
         const fInput = document.getElementById('formula-input');
@@ -2630,18 +2681,32 @@
             colKey: colKey,
             value: newVal
           })
+        }).then(() => {
+          loadAllData(false);
         }).catch(err => console.error('Inline edit sync error:', err));
       }
 
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          commit();
-        } else if (e.key === 'Escape') {
-          committed = true;
-          cellEl.textContent = currentVal;
+      input._commit = commit;
+
+      input.addEventListener('paste', (e) => {
+        const pasteVal = (e.clipboardData || window.clipboardData).getData('text/plain');
+        if (pasteVal && !pasteVal.includes('\t') && !pasteVal.includes('\n')) {
+          e.preventDefault();
+          input.value = pasteVal.trim();
+          commit(true);
         }
       });
-      input.addEventListener('blur', commit);
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          commit(true);
+        } else if (e.key === 'Escape') {
+          cancel();
+        }
+      });
+      input.addEventListener('blur', () => {
+        commit(false);
+      });
     }
 
     // =========================================================================
