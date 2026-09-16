@@ -2914,3 +2914,29 @@ tr.drag-over-bottom {
   user-select: none !important;
   -webkit-user-select: none !important;
 }
+
+/* UI Headers & Menus Unselectable (prevents accidental web text selection during copy) */
+.app-header,
+.brand-section,
+.brand-menu,
+.header-actions,
+.toolbar-full-ribbon,
+.spreadsheet-toolbar,
+.sheet-tabs-list,
+.formula-bar,
+.filter-pills {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* Copied Cells Dashed Outline (Google Sheets Style) */
+.cell.cell-copied-outline {
+  outline: 2px dashed #0284c7 !important;
+  outline-offset: -1px !important;
+  animation: marchingAnts 1.2s linear infinite !important;
+}
+@keyframes marchingAnts {
+  0% { outline-offset: -1px; }
+  50% { outline-offset: 1px; }
+  100% { outline-offset: -1px; }
+}
