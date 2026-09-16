@@ -1571,9 +1571,13 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
       ];
       const colStartIndex = Math.max(0, startCol - 1);
 
+      const hasSpecificRows = Array.isArray(req.body.rowNumbers) && req.body.rowNumbers.length > 0;
+
       for (let r = 0; r < matrix.length; r++) {
         const rowData = matrix[r];
-        const targetRowNumber = startRow + r;
+        const targetRowNumber = (hasSpecificRows && req.body.rowNumbers[r])
+          ? parseInt(req.body.rowNumbers[r], 10)
+          : startRow + r;
         let record = fastIndex.byRow.get(targetRowNumber) || memoryStore.patients.find(p => p.rowNumber === targetRowNumber);
 
         if (!record) {
