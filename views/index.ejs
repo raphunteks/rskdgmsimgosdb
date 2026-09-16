@@ -1533,13 +1533,11 @@
           return;
         }
 
-        // Cmd + C / Ctrl + C: Salin Semua Baris Terpilih ke Clipboard jika mode All Selected
+        // Cmd + C / Ctrl + C: Smart Clipboard Copy Engine (Google Sheets / Excel Style)
         if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C')) {
-          if (state.isAllSelected) {
-            e.preventDefault();
-            copyVisiblePatientsToClipboard();
-            return;
-          }
+          e.preventDefault();
+          copyActiveSelectionToClipboard();
+          return;
         }
 
         // Escape: Batalkan seleksi semua baris / kolom / range
@@ -1653,6 +1651,96 @@
           console.error("Gagal menyalin ke clipboard:", err);
         });
       }
+    }
+
+    // Smart Clipboard Copy Engine (Sel Tunggal, Kolom, Rentang, atau Semua Baris)
+    function copyActiveSelectionToClipboard() {
+      document.querySelectorAll(".cell-copied-outline").forEach(el => el.classList.remove("cell-copied-outline"));
+
+      // 1. Seluruh Baris Terpilih (Cmd + A)
+      if (state.isAllSelected) {
+        copyVisiblePatientsToClipboard();
+        return;
+      }
+
+      // 2. Seluruh Kolom Terpilih (Klik Header Kolom)
+      if (state.selectedColumn) {
+        const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+        if (!tbody) return;
+        const visibleRows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+        if (visibleRows.length === 0) return;
+
+        const colNum = colLetterToNumber(state.selectedColumn);
+        const colVals = [];
+        visibleRows.forEach(tr => {
+          const cells = tr.querySelectorAll(".cell");
+          const targetCell = cells[colNum - 1];
+          if (targetCell) {
+            targetCell.classList.add("cell-copied-outline");
+            colVals.push((targetCell.textContent || "").trim().replace(/\t/g, " ").replace(/\r?\n/g, " "));
+          }
+        });
+
+        if (colVals.length > 0) {
+          const text = colVals.join("\n");
+          navigator.clipboard.writeText(text).then(() => {
+            showToast(`Kolom ${state.selectedColumn} disalin (${colVals.length} baris) ke Clipboard!`, "success");
+          }).catch(err => console.error("Gagal menyalin kolom:", err));
+        }
+        return;
+      }
+
+      // 3. Rentang Multi-Sel Terpilih (Mouse Drag / Shift-Click)
+      if (state.selectionRange && (state.selectionRange.rowCount > 1 || state.selectionRange.colCount > 1)) {
+        const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+        if (!tbody) return;
+        const visibleRows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+
+        const minR = state.selectionRange.startRIdx;
+        const maxR = state.selectionRange.endRIdx;
+        const minC = state.selectionRange.startCol - 1;
+        const maxC = state.selectionRange.endCol - 1;
+
+        const tsvLines = [];
+        let copiedCount = 0;
+
+        for (let r = minR; r <= maxR; r++) {
+          if (visibleRows[r]) {
+            const cells = visibleRows[r].querySelectorAll(".cell");
+            const rowVals = [];
+            for (let c = minC; c <= maxC; c++) {
+              if (cells[c]) {
+                cells[c].classList.add("cell-copied-outline");
+                rowVals.push((cells[c].textContent || "").trim().replace(/\t/g, " ").replace(/\r?\n/g, " "));
+                copiedCount++;
+              }
+            }
+            tsvLines.push(rowVals.join("\t"));
+          }
+        }
+
+        if (tsvLines.length > 0) {
+          const text = tsvLines.join("\n");
+          navigator.clipboard.writeText(text).then(() => {
+            showToast(`Rentang ${copiedCount} sel disalin ke Clipboard!`, "success");
+          }).catch(err => console.error("Gagal menyalin rentang:", err));
+        }
+        return;
+      }
+
+      // 4. Sel Tunggal Terpilih (Single Cell)
+      if (state.selectedCell && state.selectedCell.coord) {
+        const cellEl = document.querySelector(`.cell[data-coord="${state.selectedCell.coord}"]`);
+        const cellVal = cellEl ? (cellEl.textContent || "").trim() : (state.selectedCell.value || "");
+        if (cellEl) cellEl.classList.add("cell-copied-outline");
+
+        navigator.clipboard.writeText(cellVal).then(() => {
+          showToast(`Sel ${state.selectedCell.coord} disalin: "${cellVal}"`, "success");
+        }).catch(err => console.error("Gagal menyalin sel:", err));
+        return;
+      }
+
+      showToast("Pilih sel atau kolom terlebih dahulu untuk menyalin.", "info");
     }
 
     // =========================================================================
