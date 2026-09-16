@@ -280,6 +280,16 @@
         <button class="filter-btn" data-filter="h1" onclick="applyFilter('h1')">
           <i class="fas fa-calendar-check"></i> H-1
         </button>
+        <!-- Custom H- Filter Pill -->
+        <div class="custom-h-pill" id="custom-h-container">
+          <button class="filter-btn custom-h-btn" data-filter="custom_h" onclick="focusCustomHInput(event)">
+            <i class="fas fa-calendar-alt"></i> H-
+          </button>
+          <input type="number" id="custom-h-input" class="custom-h-input" placeholder="0, 3..." min="0" max="365"
+            title="Ketik angka selisih hari (misal 0 untuk Hari H, 3 untuk H-3, 7 untuk H-7)"
+            oninput="handleCustomHChange(this.value)" onkeydown="handleCustomHKey(event)">
+          <button type="button" class="custom-h-clear" id="custom-h-clear-btn" onclick="clearCustomHFilter(event)" title="Reset Filter H-">&times;</button>
+        </div>
         <button class="filter-btn" data-filter="reschedule" onclick="applyFilter('reschedule')">
           <i class="fas fa-history"></i> Reschedule
         </button>
@@ -828,6 +838,8 @@
       templates: [],
       prompts: [],
       activeFilter: "all",
+      customHDays: null,
+      isAllSelected: false,
       searchQuery: "",
       selectedCell: { coord: "A1", row: 1, col: "A", value: "" },
       lastSync: null
@@ -957,18 +969,30 @@
       }
     }
 
+    function getDateAfterDays(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + Number(days));
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
     function getFilteredPatients() {
       let filtered = [...state.patients];
 
       // Quick Filters
       if (state.activeFilter === "h2") {
-        const now = new Date();
-        const h2Date = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+        const h2Date = getDateAfterDays(2);
         filtered = filtered.filter(p => p.tglKontrol === h2Date || p.tglReschedule === h2Date);
       } else if (state.activeFilter === "h1") {
-        const now = new Date();
-        const h1Date = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+        const h1Date = getDateAfterDays(1);
         filtered = filtered.filter(p => p.tglKontrol === h1Date || p.tglReschedule === h1Date);
+      } else if (state.activeFilter === "custom_h") {
+        if (state.customHDays !== null && state.customHDays !== undefined && state.customHDays !== "") {
+          const targetDate = getDateAfterDays(state.customHDays);
+          filtered = filtered.filter(p => p.tglKontrol === targetDate || p.tglReschedule === targetDate);
+        }
       } else if (state.activeFilter === "reschedule") {
         filtered = filtered.filter(p => (p.statusReschedule && p.statusReschedule !== "-") || (p.tglReschedule && p.tglReschedule !== "-"));
       } else if (state.activeFilter === "rujukan_aktif") {
@@ -1011,7 +1035,7 @@
         const hasResched = p.tglReschedule && p.tglReschedule !== "-";
 
         html += `
-          <tr data-row="${p.rowNumber}" draggable="true" data-sheet="DATA_PASIEN" data-row-idx="${idx}">
+          <tr data-row="${p.rowNumber}" data-db-row="${p.rowNumber}" data-filtered-idx="${idx}" draggable="true" data-sheet="DATA_PASIEN" data-row-idx="${idx}">
             <td class="row-num-cell"><span class="row-drag-handle" title="Tahan & geser untuk memindahkan baris (Drag to reorder)"><i class="fas fa-grip-vertical"></i> ${rowNum}</span></td>
             <td class="cell" data-coord="A${rowNum}" onclick="selectCell(this, 'A${rowNum}')" ondblclick="startInlineEdit(this, 'timestamp', ${p.rowNumber}, 'DATA_PASIEN')">${p.timestamp || "-"}</td>
             <td class="cell font-mono" data-coord="B${rowNum}" onclick="selectCell(this, 'B${rowNum}')" ondblclick="startInlineEdit(this, 'noRm', ${p.rowNumber}, 'DATA_PASIEN')"><strong>${p.noRm || "-"}</strong></td>
@@ -1247,6 +1271,9 @@
 
     // Cell Selection & Formula Bar Two-Way Sync
     function selectCell(element, coord) {
+      if (state.isAllSelected) {
+        deselectAllTableRows();
+      }
       document.querySelectorAll(".cell.cell-selected").forEach(c => c.classList.remove("cell-selected"));
       element.classList.add("cell-selected");
 
@@ -1316,12 +1343,36 @@
         switchTab(targetTab);
       }
 
-      // Keyboard Delete / Backspace to Clear Cell Content (Google Sheets style)
+      // Keyboard Shortcuts (Cmd+A / Ctrl+A, Cmd+C, Delete/Backspace, Esc)
       window.addEventListener('keydown', (e) => {
         const activeTag = document.activeElement ? document.activeElement.tagName.toUpperCase() : '';
-        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || document.activeElement.isContentEditable) {
+        const isInput = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || (document.activeElement && document.activeElement.isContentEditable);
+        if (isInput) return;
+
+        // Cmd + A / Ctrl + A: Pilih Semua Baris Terlihat pada Sheet Aktif & Filter Aktif
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A')) {
+          e.preventDefault();
+          selectAllTableRows();
           return;
         }
+
+        // Cmd + C / Ctrl + C: Salin Semua Baris Terpilih ke Clipboard jika mode All Selected
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C')) {
+          if (state.isAllSelected) {
+            e.preventDefault();
+            copyVisiblePatientsToClipboard();
+            return;
+          }
+        }
+
+        // Escape: Batalkan seleksi semua baris
+        if (e.key === 'Escape') {
+          if (state.isAllSelected) {
+            deselectAllTableRows();
+          }
+        }
+
+        // Delete / Backspace to Clear Cell Content (Google Sheets style)
         if (e.key === 'Delete' || e.key === 'Backspace') {
           if (state.selectedCell && state.selectedCell.coord) {
             e.preventDefault();
@@ -1334,17 +1385,69 @@
       initRowDragAndDrop();
     });
 
+    // Selection Helpers for Cmd+A, Cmd+C, Cmd+V
+    function selectAllTableRows() {
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      if (!tbody) return;
+      const rows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+      if (rows.length === 0) return;
+
+      state.isAllSelected = true;
+      rows.forEach(tr => tr.classList.add("row-selected-range"));
+
+      // Set default selectedCell to first visible row if not already selected
+      const firstCell = tbody.querySelector(".cell");
+      if (firstCell && (!state.selectedCell || !state.selectedCell.coord)) {
+        const coord = firstCell.getAttribute("data-coord") || "A2";
+        state.selectedCell = { coord: coord, row: 2, col: "A", value: firstCell.textContent.trim() };
+        const addr = document.getElementById("cell-address");
+        if (addr) addr.textContent = coord;
+      }
+
+      showToast(`${rows.length} baris terpilih (${state.activeFilter.toUpperCase()}). Tekan Cmd+C untuk salin atau Cmd+V untuk menempelkan data.`, "info");
+    }
+
+    function deselectAllTableRows() {
+      state.isAllSelected = false;
+      document.querySelectorAll(".row-selected-range").forEach(tr => tr.classList.remove("row-selected-range"));
+    }
+
+    function copyVisiblePatientsToClipboard() {
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      if (!tbody) return;
+      const rows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+      if (rows.length === 0) return;
+
+      const tsvRows = [];
+      rows.forEach(tr => {
+        const cells = Array.from(tr.querySelectorAll(".cell"));
+        if (cells.length > 0) {
+          const rowVals = cells.map(td => (td.textContent || "").trim().replace(/\t/g, " ").replace(/\r?\n/g, " "));
+          tsvRows.push(rowVals.join("\t"));
+        }
+      });
+
+      if (tsvRows.length > 0) {
+        const textToCopy = tsvRows.join("\n");
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          showToast(`Berhasil menyalin ${tsvRows.length} baris data ke Clipboard!`, "success");
+        }).catch(err => {
+          console.error("Gagal menyalin ke clipboard:", err);
+        });
+      }
+    }
+
     // =========================================================================
     // REAL-TIME SPREADSHEET CLIPBOARD PASTE HANDLER (GOOGLE SHEETS / EXCEL)
     // =========================================================================
     async function handleGlobalSpreadsheetPaste(e) {
-      // Jika pengguna sedang mengetik di input modal form, biarkan paste default
+      // Jika pengguna sedang mengetik di input modal form atau input filter, biarkan paste default
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
       const activeId = document.activeElement ? document.activeElement.id : "";
       if (document.querySelector(".modal-overlay.active") && (activeTag === "input" || activeTag === "textarea" || activeTag === "select")) {
         return;
       }
-      if (activeTag === "input" && activeId === "global-search") {
+      if (activeTag === "input" && (activeId === "global-search" || activeId === "custom-h-input" || activeId === "formula-input")) {
         return;
       }
 
@@ -1375,19 +1478,56 @@
         }
       }
 
+      // Deteksi baris target terfilter (H-2, H-1, Custom H-, Reschedule, Rujukan, Butuh LID)
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      const visibleRows = tbody ? Array.from(tbody.querySelectorAll("tr:not(.empty-state)")) : [];
+
+      let targetRowNumbers = [];
+      let startFilteredIdx = 0;
+
+      if (state.selectedCell && state.selectedCell.coord) {
+        const selectedCellEl = document.querySelector(`.cell[data-coord="${state.selectedCell.coord}"]`);
+        if (selectedCellEl) {
+          const parentTr = selectedCellEl.closest("tr");
+          if (parentTr) {
+            startFilteredIdx = visibleRows.indexOf(parentTr);
+            if (startFilteredIdx < 0) startFilteredIdx = 0;
+          }
+        }
+      }
+
+      if (state.activeSheet === "DATA_PASIEN" && visibleRows.length > 0) {
+        for (let r = 0; r < matrix.length; r++) {
+          const targetIdx = startFilteredIdx + r;
+          if (visibleRows[targetIdx]) {
+            const dbRow = visibleRows[targetIdx].getAttribute("data-db-row") || visibleRows[targetIdx].getAttribute("data-row");
+            if (dbRow) {
+              targetRowNumbers.push(parseInt(dbRow));
+            }
+          }
+        }
+      }
+
       showToast(`Sedang menempelkan & menyinkronkan ${matrix.length} baris ke Upstash Redis...`, "info");
 
       try {
+        const payload = {
+          action: "batch_paste",
+          sheet: state.activeSheet,
+          startRow: startRow,
+          startCol: startCol,
+          matrix: matrix
+        };
+
+        // Jika terdapat target baris terfilter, lampirkan rowNumbers agar tepat sasaran
+        if (targetRowNumbers.length > 0) {
+          payload.rowNumbers = targetRowNumbers;
+        }
+
         const res = await fetch("/api", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "batch_paste",
-            sheet: state.activeSheet,
-            startRow: startRow,
-            startCol: startCol,
-            matrix: matrix
-          })
+          body: JSON.stringify(payload)
         });
 
         const json = await res.json();
@@ -1395,12 +1535,16 @@
           showToast(`Berhasil! ${json.message || matrix.length + ' baris tersimpan di Redis L1'}`, "success");
           await loadAllData(false);
 
+          if (state.isAllSelected) {
+            deselectAllTableRows();
+          }
+
           setTimeout(() => {
             const table = document.getElementById(`table-${state.activeSheet}`);
             if (table) {
-              const rows = table.querySelectorAll("tbody tr");
+              const rows = Array.from(table.querySelectorAll("tbody tr:not(.empty-state)"));
               for (let r = 0; r < matrix.length; r++) {
-                const targetRowIndex = (startRow - 2) + r;
+                const targetRowIndex = startFilteredIdx + r;
                 if (rows[targetRowIndex]) {
                   const cells = rows[targetRowIndex].querySelectorAll(".cell");
                   for (let c = 0; c < matrix[r].length; c++) {
@@ -1735,11 +1879,68 @@
     }
 
     // Filters and Search
+    function focusCustomHInput(e) {
+      if (e) e.stopPropagation();
+      const inp = document.getElementById("custom-h-input");
+      if (inp) {
+        inp.focus();
+        if (inp.value) {
+          applyFilter("custom_h");
+        }
+      }
+    }
+
+    function handleCustomHChange(val) {
+      const container = document.getElementById("custom-h-container");
+      const clearBtn = document.getElementById("custom-h-clear-btn");
+      const trimmed = String(val).trim();
+
+      if (trimmed !== "" && !isNaN(trimmed)) {
+        state.customHDays = parseInt(trimmed);
+        if (container) container.classList.add("has-value");
+        if (clearBtn) clearBtn.style.display = "flex";
+        applyFilter("custom_h");
+      } else {
+        state.customHDays = null;
+        if (container) container.classList.remove("has-value");
+        if (clearBtn) clearBtn.style.display = "none";
+        if (state.activeFilter === "custom_h") {
+          applyFilter("all");
+        }
+      }
+    }
+
+    function clearCustomHFilter(e) {
+      if (e) e.stopPropagation();
+      const inp = document.getElementById("custom-h-input");
+      const container = document.getElementById("custom-h-container");
+      const clearBtn = document.getElementById("custom-h-clear-btn");
+      if (inp) inp.value = "";
+      if (container) container.classList.remove("has-value");
+      if (clearBtn) clearBtn.style.display = "none";
+      state.customHDays = null;
+      applyFilter("all");
+    }
+
+    function handleCustomHKey(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleCustomHChange(e.target.value);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clearCustomHFilter(e);
+      }
+    }
+
     function applyFilter(filterName) {
       state.activeFilter = filterName;
       document.querySelectorAll(".filter-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.filter === filterName);
       });
+      const hContainer = document.getElementById("custom-h-container");
+      if (hContainer) {
+        hContainer.classList.toggle("active", filterName === "custom_h");
+      }
       renderTablePatients();
       renderCardsPatients();
       updateRowCountStatus();
