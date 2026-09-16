@@ -766,6 +766,19 @@ body[data-theme="blue-cyan"] {
   border-right: 1px solid var(--cell-border);
   border-bottom: 1px solid var(--cell-border);
   white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.col-header:hover {
+  background: var(--toolbar-hover);
+  color: var(--primary);
+}
+.col-header.col-header-selected {
+  background: rgba(14, 165, 233, 0.25) !important;
+  color: var(--primary) !important;
+  border-bottom: 2px solid var(--primary) !important;
+  box-shadow: inset 0 -2px 0 var(--primary);
 }
 .col-header .sub-col {
   display: block;
@@ -2888,4 +2901,16 @@ tr.drag-over-bottom {
   padding: 2px 4px;
   outline: none;
   box-sizing: border-box;
+}
+
+/* Column and Multi-cell Selection Range */
+.cell.col-selected-range,
+.cell.cell-selected-range {
+  background: rgba(14, 165, 233, 0.15) !important;
+  outline: 1px solid rgba(14, 165, 233, 0.45) !important;
+}
+
+.table-range-selecting {
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
