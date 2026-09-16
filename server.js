@@ -461,6 +461,7 @@ function formatInternationalPhone(phone) {
 
 function loadInitialSeedPatients() {
   const seedPaths = [
+    path.join(__dirname, "data", "backup_patients_408.json"),
     path.join(__dirname, "data", "patients_gas.json"),
     path.join(__dirname, "data", "initial_seed.json")
   ];
@@ -469,7 +470,7 @@ function loadInitialSeedPatients() {
     if (fs.existsSync(sp)) {
       try {
         const raw = JSON.parse(fs.readFileSync(sp, "utf8"));
-        const list = Array.isArray(raw.data) ? raw.data : (Array.isArray(raw.patients) ? raw.patients : []);
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw.data) ? raw.data : (Array.isArray(raw.patients) ? raw.patients : []));
         if (list.length > 0) {
           return list.map((p, idx) => ({
             rowNumber: p.rowNumber || idx + 2,
@@ -501,34 +502,8 @@ function loadInitialSeedPatients() {
     }
   }
 
-  // Fallback 10 dummy patients
-  const fallback = [];
-  for (let i = 1; i <= 10; i++) {
-    fallback.push({
-      rowNumber: i + 1,
-      timestamp: "2026-09-15 08:30:00",
-      noRm: `00.0${i}.12.34`,
-      namaPasien: `Pasien Contoh ${i}`,
-      tglMasuk: "2026-09-10",
-      tglKontrol: "2026-09-17",
-      noHp: `628123456789${i % 10}`,
-      cleanPhone: `628123456789${i % 10}`,
-      tempatTglLahir: "Makassar, 12-05-1990",
-      umur: "34",
-      agama: "Islam",
-      jenisKelamin: i % 2 === 0 ? "P" : "L",
-      statusWaH2: "Pending",
-      statusDokterH2: "Pending",
-      statusWaH1: "Pending",
-      statusDokterH1: "Pending",
-      noSender: `628123456789${i % 10}`,
-      statusReschedule: "-",
-      statusRujukan: "Rujukan Aktif",
-      noLid: "-",
-      tglReschedule: "-"
-    });
-  }
-  return fallback;
+  // Jika tidak ada file seed, kembalikan array kosong (TIDAK PERNAH membuat dummy 'Pasien Contoh')
+  return [];
 }
 
 let dbInitPromise = null;
@@ -553,9 +528,14 @@ async function initializeDatabase() {
   if (!redisPatients || !Array.isArray(redisPatients) || redisPatients.length === 0) {
     console.log("Seeding DATA_PASIEN into Redis from local seed file...");
     const seedPatients = loadInitialSeedPatients();
-    await redisSet("DATA_PASIEN", seedPatients);
-    memoryStore.patients = seedPatients;
-    console.log(`Successfully seeded ${seedPatients.length} patients.`);
+    if (seedPatients && seedPatients.length > 0) {
+      await redisSet("DATA_PASIEN", seedPatients);
+      memoryStore.patients = seedPatients;
+      console.log(`Successfully seeded ${seedPatients.length} real patients.`);
+    } else {
+      memoryStore.patients = [];
+      console.log("No seed file found, starting with clean empty dataset.");
+    }
   } else {
     // If loaded patients lack full columns, enrich with seed data
     memoryStore.patients = redisPatients.map((p, idx) => ({
