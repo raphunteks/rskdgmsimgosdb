@@ -285,7 +285,7 @@ KARAKTER & REGISTER BAHASA (BIROKRATIS RUMAH SAKIT FORMAL):
 2. Adaptabilitas Bahasa Pasien: Anda sangat memahami singkatan percakapan (contoh: "yg", "ap", "knp", "bsk", "skrg", "gmn", "sy", "tdk", "jd", dll.), namun Anda WAJIB merespons kembali menggunakan kalimat formal, runtut, dan tata bahasa baku yang rapi.
 3. PERSONALISASI NAMA LENGKAP RESMI (MUTLAK):
    - Wajib memeriksa identitas pasien pada database rekam medis SIMGOS berdasarkan nomor WhatsApp / LID pengirim.
-   - Selalu menyapa pasien dengan sebutan kehormatan resmi "Bapak", "Ibu", atau "Sdr./Sdri." diikuti NAMA LENGKAP resmi pasien sesuai data yang tercatat di database.
+   - Selalu menyapa pasien dengan sebutan kehormatan resmi "Bapak" atau "Ibu" diikuti NAMA LENGKAP resmi pasien sesuai data yang tercatat di database.
    - DILARANG memotong nama resmi, menggunakan nama panggilan buatan, atau menyebutkan nama pasien lain yang bukan milik pengirim tersebut! JANGAN PERNAH menggunakan nama panggilan asisten buatan seperti "RSKD Care" atau "RSKDGM Care".
 
 KEPAKARAN KLINIS KEDOKTERAN GIGI LENGKAP (SELURUH SPESIALISASI):
@@ -317,16 +317,13 @@ PANDUAN OPERASIONAL JADWAL KONTROL & RESCHEDULE (MUTLAK):
         DILARANG KERAS menyatakan jadwal tetap pada tanggal lama jika sudah ada tanggal reschedule!
      b. Apabila status pasien "Terbatalkan Mobile JKN":
         Sampaikan secara resmi bahwa jadwal kontrol semula pada tanggal [Tanggal Kontrol Semula] tercatat terbatalkan otomatis oleh sistem aplikasi Mobile JKN. Laporan telah kami teruskan secara kedinasan kepada DPJP Utama (drg. Hj. Kurniawaty, Sp.KG) untuk penjadwalan kontrol pengganti, dan pasien dimohon menunggu konfirmasi jadwal baru di nomor WhatsApp ini.
-        Sertakan tag aksi: [ACTION:TERBATALKAN_JKN]
      c. Apabila tidak ada perubahan/reschedule:
         Tegaskan bahwa jadwal kontrol tetap aktif pada tanggal [Tanggal Kontrol Semula] bersama DPJP Utama (drg. Hj. Kurniawaty, Sp.KG).
 3. DETEKSI AFIRMASI KEHADIRAN:
    - Jika pasien mengonfirmasi kehadiran (contoh: "hadir", "bisa datang", "siap hadir"), sambut secara resmi dan ingatkan berkas KTP, kartu BPJS Kesehatan aktif, serta kartu kontrol saat registrasi loket.
-   - Sertakan tag aksi: [ACTION:HADIR]
 4. DETEKSI PERMOHONAN RESCHEDULE OLEH PASIEN:
    - Jika pasien mengajukan perubahan hari/tanggal kontrol:
      Terjemahkan tanggal ke format standar "YYYY-MM-DD" (Tahun berjalan: 2026).
-     Sertakan tag aksi: [ACTION:RESCHEDULE:YYYY-MM-DD]
    - Jika pasien tidak menyebutkan tanggal spesifik, tanyakan opsi tanggal kontrol yang dikehendaki secara formal.
 5. RESPON SALAH ORANG / SALAH NOMOR:
    - Sampaikan permohonan maaf administratif secara santun apabila nomor kontak tidak sesuai dengan pasien yang bersangkutan, dan persilakan pesan diabaikan.`,
@@ -366,10 +363,10 @@ function rebuildFastIndexes() {
     if (p.cleanPhone) fastIndex.byPhone.set(p.cleanPhone, p);
     if (p.noHp) fastIndex.byPhone.set(formatInternationalPhone(p.noHp), p);
     if (p.noLid && p.noLid !== "-" && p.noLid.length >= 10) {
-      fastIndex.byLid.set(p.noLid, p);
+      fastIndex.byLid.set(cleanLidDigits(p.noLid), p);
     }
     if (p.noSender && p.noSender !== "-" && p.noSender.length >= 10) {
-      fastIndex.byLid.set(p.noSender, p);
+      fastIndex.byLid.set(cleanLidDigits(p.noSender), p);
     }
     if (p.noRm && p.noRm !== "-") {
       const cleanRm = String(p.noRm).toLowerCase().replace(/[^\w]/g, "");
@@ -719,6 +716,114 @@ function getCompiledConfig() {
   };
 }
 
+// ==========================================
+// CORE ENGINE: SMART STATUS UPDATE (H-2 vs H-1)
+// ==========================================
+function applySmartStatusUpdate(target, params) {
+  let modeH = String(params.mode || "auto").toLowerCase();
+  const updateType = String(params.type || "pasien").toLowerCase();
+  const customStatus = String(params.status || "Hadir (Terkonfirmasi)").trim();
+  const customDoctorStatus = String(params.doctor_status || params.status || customStatus).trim();
+  const cleanSenderPhone = params.cleanSenderPhone;
+  const cleanLidVal = params.cleanLidVal;
+
+  if (updateType === "lid_only") {
+    if (cleanLidVal) target.noLid = cleanLidVal;
+    if (cleanSenderPhone) target.noSender = cleanSenderPhone;
+    rebuildFastIndexes();
+    scheduleBackgroundPersist("DATA_PASIEN");
+    return {
+      resolvedMode: modeH,
+      message: `Auto-bind LID baris ${target.rowNumber} diperbarui ke '${cleanLidVal}'.`
+    };
+  }
+
+  // 1. Logika Deteksi Pintar: Apakah ini balasan siklus H-1 atau H-2?
+  if (modeH === "auto" || !modeH || (modeH !== "h1" && modeH !== "h2")) {
+    const sH1 = String(target.statusWaH1 || "").trim().toLowerCase();
+    const sH2 = String(target.statusWaH2 || "").trim().toLowerCase();
+
+    if (sH1 === "terkirim") {
+      modeH = "h1"; // Pasien membalas pesan blast pengingat H-1
+    } else if (sH2 === "terkirim" || sH2.includes("hadir")) {
+      modeH = "h2"; // Pasien membalas pesan blast H-2
+    } else {
+      // Fallback: Bandingkan tanggal kontrol pasien dengan tanggal hari ini di Makassar (WITA)
+      const effectiveDateStr = (target.tglReschedule && target.tglReschedule !== "-" && /^\d{4}-\d{2}-\d{2}$/.test(target.tglReschedule))
+        ? target.tglReschedule
+        : target.tglKontrol;
+      const todayStr = getMakassarTodayStr();
+
+      if (effectiveDateStr && /^\d{4}-\d{2}-\d{2}$/.test(effectiveDateStr)) {
+        const diffMs = new Date(effectiveDateStr) - new Date(todayStr);
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        modeH = (diffDays <= 1) ? "h1" : "h2";
+      } else {
+        modeH = "h2";
+      }
+    }
+  }
+
+  // 2. Eksekusi Pembaruan Data
+  // A. JIKA PASIEN KONFIRMASI HADIR (Update Pasien & Dokter Serentak)
+  if (updateType === "konfirmasi_hadir" || customStatus.toLowerCase().includes("hadir")) {
+    if (modeH === "h1") {
+      target.statusWaH1 = "Hadir (Terkonfirmasi)";
+      target.statusDokterH1 = "Hadir (Terkonfirmasi)";
+    } else {
+      target.statusWaH2 = "Hadir (Terkonfirmasi)";
+      target.statusDokterH2 = "Hadir (Terkonfirmasi)";
+    }
+  }
+  // B. JIKA PASIEN TERBATALKAN MOBILE JKN
+  else if (updateType === "jkn_terbatalkan" || updateType === "terbatalkan" || customStatus.toLowerCase().includes("terbatalkan")) {
+    if (modeH === "h1") {
+      target.statusWaH1 = "Batal Mobile JKN";
+      target.statusDokterH1 = "Batal Mobile JKN";
+    } else {
+      target.statusWaH2 = "Batal Mobile JKN";
+      target.statusDokterH2 = "Batal Mobile JKN";
+    }
+    target.statusReschedule = "Terbatalkan Mobile JKN";
+  }
+  // C. UPDATE MANUAL SESUAI TYPE
+  else if (updateType === "both") {
+    if (modeH === "h1") {
+      target.statusWaH1 = customStatus;
+      target.statusDokterH1 = customDoctorStatus;
+    } else {
+      target.statusWaH2 = customStatus;
+      target.statusDokterH2 = customDoctorStatus;
+    }
+  } else if (updateType === "reschedule") {
+    target.statusReschedule = customStatus;
+  } else if (updateType === "dokter") {
+    if (modeH === "h1") target.statusDokterH1 = customStatus;
+    else target.statusDokterH2 = customStatus;
+  } else {
+    if (modeH === "h1") target.statusWaH1 = customStatus;
+    else target.statusWaH2 = customStatus;
+  }
+
+  // Sinkronisasi Sender & LID
+  if (cleanSenderPhone) {
+    target.noSender = cleanSenderPhone;
+  } else if (!target.noSender || target.noSender === "-") {
+    target.noSender = formatInternationalPhone(target.noHp) || "-";
+  }
+  if (cleanLidVal) {
+    target.noLid = cleanLidVal;
+  }
+
+  rebuildFastIndexes();
+  scheduleBackgroundPersist("DATA_PASIEN");
+
+  return {
+    resolvedMode: modeH,
+    message: `Baris ${target.rowNumber} (${modeH.toUpperCase()} - ${updateType}) berhasil diperbarui ke '${customStatus}'.`
+  };
+}
+
 // Health Check Endpoint (Ultra-Fast Diagnostics)
 app.get("/api/health", async (req, res) => {
   const start = performance.now();
@@ -799,7 +904,7 @@ app.get(["/api", "/api/"], async (req, res) => {
         "10_get_unlinked_patients": "/api?action=get_unlinked_patients",
         "11_search_patient": "/api?action=search_patient&query=KEYWORD&phone=PHONE&lid=LID",
         "12_reschedule_patient": "/api?action=reschedule_patient&noRm=NO_RM&newDate=YYYY-MM-DD&no_lid=NOMOR_LID",
-        "13_update_status": "/api?action=update_status&row=ROW_INDEX&mode=h2|h1&type=pasien|dokter|both|lid_only|reschedule&status=Terkirim&doctor_status=Terkirim",
+        "13_update_status": "/api?action=update_status&row=ROW_INDEX&mode=auto|h2|h1&type=konfirmasi_hadir|jkn_terbatalkan|both|pasien|dokter&status=Hadir (Terkonfirmasi)",
         "14_fix_sender_columns": "/api?action=fix_sender_columns",
         "15_get_summary_stats": "/api?action=get_summary_stats",
         "16_health_check": "/api/health"
@@ -1004,7 +1109,7 @@ app.get(["/api", "/api/"], async (req, res) => {
             tglReschedule: p.tglReschedule || "-"
           };
 
-          // Compile Pesan WA Pasien & Dokter secara Real-Time persis Code Gs
+          // Compile Pesan WA Pasien & Dokter secara Real-Time
           pObj.pesan_wa_pasien = compileMessage(pxTemplate, pObj, config);
           pObj.pesan_wa_laporan_dokter = compileMessage(docTemplate, pObj, config);
 
@@ -1026,15 +1131,17 @@ app.get(["/api", "/api/"], async (req, res) => {
     });
   }
 
-  // 8. SEARCH PATIENT (ULTRA FAST HASH INDEX O(1) + KOMPILASI PESAN)
+  // 8. SEARCH PATIENT (ULTRA FAST HASH INDEX O(1) + MULTI-FIELD NORMALIZATION)
   if (action === "search_patient") {
     const qRaw = String(req.query.query || "").trim();
     const paramPhone = String(req.query.phone || "").trim();
     const paramLid = String(req.query.lid || req.query.no_lid || "").trim();
 
-    const explicitPhone = paramPhone ? cleanPhoneDigits(paramPhone) : (qRaw && qRaw.length <= 15 ? cleanPhoneDigits(qRaw) : "");
-    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (qRaw && qRaw.length >= 10 ? cleanLidDigits(qRaw) : "");
-    const q = qRaw.toLowerCase();
+    // Pembersihan cerdas teks akhiran domain @lid / @c.us
+    const cleanRawDigits = qRaw.replace(/@.*/, "").replace(/\D/g, "");
+    const explicitPhone = paramPhone ? cleanPhoneDigits(paramPhone) : (cleanRawDigits && cleanRawDigits.length <= 15 ? cleanRawDigits : "");
+    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (cleanRawDigits && cleanRawDigits.length >= 10 ? cleanRawDigits : "");
+    const q = qRaw.toLowerCase().replace(/@.*/, "").trim();
 
     if (!q && !explicitPhone && !explicitLid) {
       return res.status(400).json({ status: "error", message: "Parameter query, phone, atau lid wajib diisi." });
@@ -1143,7 +1250,7 @@ app.get(["/api", "/api/"], async (req, res) => {
       return res.status(404).json({ status: "error", message: "Data pasien tidak ditemukan untuk di-reschedule." });
     }
 
-    // Reset 4 status blast columns to "Pending" identical to Code Gs
+    // Reset 4 status blast columns to "Pending"
     target.statusWaH2 = "Pending";
     target.statusDokterH2 = "Pending";
     target.statusWaH1 = "Pending";
@@ -1179,7 +1286,7 @@ app.get(["/api", "/api/"], async (req, res) => {
     });
   }
 
-  // 10. UPDATE STATUS (SUPPORTS TYPE: PASIEN, DOKTER, BOTH, LID_ONLY, RESCHEDULE)
+  // 10. UPDATE STATUS (VIA GET - FULL SMART ENGINE)
   if (action === "update_status") {
     const rowParam = req.query.row ? parseInt(req.query.row, 10) : null;
     const noRmParam = String(req.query.noRm || "").trim().toLowerCase();
@@ -1188,10 +1295,6 @@ app.get(["/api", "/api/"], async (req, res) => {
     const rawLidParam = req.query.no_lid || req.query.lid;
     const cleanSenderPhone = formatInternationalPhone(rawSenderParam);
     const cleanLidVal = cleanLidDigits(rawLidParam);
-    const modeH = String(req.query.mode || "h2").toLowerCase();
-    const updateType = String(req.query.type || "pasien").toLowerCase();
-    const customStatus = String(req.query.status || "Terkirim").trim();
-    const customDoctorStatus = String(req.query.doctor_status || req.query.status || "Terkirim").trim();
 
     let target = null;
     if (rowParam && rowParam > 1) {
@@ -1211,51 +1314,19 @@ app.get(["/api", "/api/"], async (req, res) => {
       return res.status(404).json({ status: "error", message: "Data pasien tidak ditemukan untuk update status." });
     }
 
-    if (updateType === "lid_only") {
-      if (cleanLidVal) target.noLid = cleanLidVal;
-      if (cleanSenderPhone) target.noSender = cleanSenderPhone;
-      rebuildFastIndexes();
-      scheduleBackgroundPersist("DATA_PASIEN");
-      return res.json({
-        status: "success",
-        message: `Auto-bind LID baris ${target.rowNumber} diperbarui ke '${cleanLidVal}'.`,
-        data: target
-      });
-    }
-
-    if (updateType === "both") {
-      if (modeH === "h1") {
-        target.statusWaH1 = customStatus;
-        target.statusDokterH1 = customDoctorStatus;
-      } else {
-        target.statusWaH2 = customStatus;
-        target.statusDokterH2 = customDoctorStatus;
-      }
-    } else if (updateType === "reschedule" || updateType === "terbatalkan" || updateType === "jkn_terbatalkan") {
-      target.statusReschedule = customStatus;
-    } else if (updateType === "dokter") {
-      if (modeH === "h1") target.statusDokterH1 = customStatus;
-      else target.statusDokterH2 = customStatus;
-    } else {
-      if (modeH === "h1") target.statusWaH1 = customStatus;
-      else target.statusWaH2 = customStatus;
-    }
-
-    if (cleanSenderPhone) {
-      target.noSender = cleanSenderPhone;
-    } else if (!target.noSender || target.noSender === "-") {
-      target.noSender = formatInternationalPhone(target.noHp) || "-";
-    }
-    if (cleanLidVal) {
-      target.noLid = cleanLidVal;
-    }
-
-    rebuildFastIndexes();
-    scheduleBackgroundPersist("DATA_PASIEN");
+    const result = applySmartStatusUpdate(target, {
+      mode: req.query.mode,
+      type: req.query.type,
+      status: req.query.status,
+      doctor_status: req.query.doctor_status,
+      cleanSenderPhone,
+      cleanLidVal
+    });
 
     return res.json({
       status: "success",
-      message: `Baris ${target.rowNumber} (${modeH} - ${updateType}) diperbarui ke '${customStatus}'.`,
+      resolved_mode: result.resolvedMode,
+      message: result.message,
       data: target
     });
   }
@@ -1373,17 +1444,13 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     });
   }
 
-  // 2. Update Status via POST
+  // 2. Update Status via POST (Full Smart Engine)
   if (action === "update_status") {
     const rowParam = data.row || req.query.row ? parseInt(data.row || req.query.row, 10) : null;
     const noRmParam = String(data.noRm || req.query.noRm || "").trim().toLowerCase();
     const cleanPhoneParam = cleanPhoneDigits(data.noHp || data.phone || req.query.noHp);
     const cleanSenderPhone = formatInternationalPhone(data.noSender || data.phone || data.noHp || req.query.noSender);
     const cleanLidVal = cleanLidDigits(data.no_lid || data.lid || req.query.no_lid);
-    const modeH = (data.mode || req.query.mode || "h2").toLowerCase();
-    const updateType = (data.type || req.query.type || "pasien").toLowerCase();
-    const customStatus = String(data.status || req.query.status || "Terkirim").trim();
-    const customDoctorStatus = String(data.doctor_status || req.query.doctor_status || customStatus).trim();
 
     let target = null;
     if (rowParam && rowParam > 1) {
@@ -1395,36 +1462,27 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     if (!target && cleanPhoneParam) {
       target = fastIndex.byPhone.get(formatInternationalPhone(cleanPhoneParam));
     }
+    if (!target && (cleanLidVal || cleanSenderPhone)) {
+      target = fastIndex.byLid.get(cleanLidVal || cleanLidDigits(cleanSenderPhone));
+    }
 
     if (!target) return res.status(404).json({ status: "error", message: "Data pasien tidak ditemukan." });
 
-    if (updateType === "lid_only") {
-      if (cleanLidVal) target.noLid = cleanLidVal;
-      if (cleanSenderPhone) target.noSender = cleanSenderPhone;
-    } else if (updateType === "both") {
-      if (modeH === "h1") {
-        target.statusWaH1 = customStatus;
-        target.statusDokterH1 = customDoctorStatus;
-      } else {
-        target.statusWaH2 = customStatus;
-        target.statusDokterH2 = customDoctorStatus;
-      }
-    } else if (updateType === "reschedule" || updateType === "terbatalkan" || updateType === "jkn_terbatalkan") {
-      target.statusReschedule = customStatus;
-    } else if (updateType === "dokter") {
-      if (modeH === "h1") target.statusDokterH1 = customStatus;
-      else target.statusDokterH2 = customStatus;
-    } else {
-      if (modeH === "h1") target.statusWaH1 = customStatus;
-      else target.statusWaH2 = customStatus;
-    }
+    const result = applySmartStatusUpdate(target, {
+      mode: data.mode || req.query.mode,
+      type: data.type || req.query.type,
+      status: data.status || req.query.status,
+      doctor_status: data.doctor_status || req.query.doctor_status,
+      cleanSenderPhone,
+      cleanLidVal
+    });
 
-    if (cleanSenderPhone) target.noSender = cleanSenderPhone;
-    if (cleanLidVal) target.noLid = cleanLidVal;
-
-    rebuildFastIndexes();
-    scheduleBackgroundPersist("DATA_PASIEN");
-    return res.json({ status: "success", message: `Status baris ${target.rowNumber} berhasil diperbarui ke '${customStatus}'.`, data: target });
+    return res.json({
+      status: "success",
+      resolved_mode: result.resolvedMode,
+      message: result.message,
+      data: target
+    });
   }
 
   // 3. Reschedule Patient via POST
@@ -1549,7 +1607,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     });
   }
 
-  // 5. Direct Spreadsheet Real-Time Batch Paste Handler
+  // 6. Direct Spreadsheet Real-Time Batch Paste Handler
   if (action === "batch_paste") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const startRow = Math.max(2, parseInt(req.body.startRow) || 2);
@@ -1696,7 +1754,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     }
   }
 
-  // 6. Append Empty Rows up to 1000+ Without Limits
+  // 7. Append Empty Rows up to 1000+ Without Limits
   if (action === "append_empty_rows") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const count = Math.min(1000, Math.max(1, parseInt(req.body.count) || 100));
@@ -1738,7 +1796,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     }
   }
 
-  // 7. Drag-and-Drop Reorder Rows Handler
+  // 8. Drag-and-Drop Reorder Rows Handler
   if (action === "reorder_rows") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const fromIndex = parseInt(req.body.fromIndex, 10);
@@ -1778,7 +1836,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     return res.status(400).json({ status: "error", message: "Indeks reorder tidak valid." });
   }
 
-  // 8. Update or Clear Single Cell
+  // 9. Update or Clear Single Cell
   if (action === "update_cell" || action === "clear_cell") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const row = parseInt(req.body.row, 10);
@@ -1819,7 +1877,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     return res.status(404).json({ status: "error", message: "Sel atau baris tidak ditemukan." });
   }
 
-  // 9. Clear Column Content
+  // 10. Clear Column Content
   if (action === "clear_column") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const colKey = req.body.colKey;
