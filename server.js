@@ -461,6 +461,7 @@ function formatInternationalPhone(phone) {
 
 function loadInitialSeedPatients() {
   const seedPaths = [
+    path.join(__dirname, "data", "backup_patients_408.json"),
     path.join(__dirname, "data", "patients_gas.json"),
     path.join(__dirname, "data", "initial_seed.json")
   ];
@@ -2202,6 +2203,63 @@ app.post("/api/sync/push", async (req, res) => {
   } catch (err) {
     console.error("Push to GAS error:", err);
     return res.status(500).json({ status: "error", message: `Gagal mengirim data ke GAS: ${err.message}` });
+  }
+});
+
+app.post("/api/restore-408", async (req, res) => {
+  try {
+    console.log("🚀 Menerima permintaan pemulihan 408 Pasien ke Upstash Redis...");
+    const seedPath = path.join(__dirname, "data", "backup_patients_408.json");
+    if (!fs.existsSync(seedPath)) {
+      return res.status(404).json({ status: "error", message: "File backup_patients_408.json tidak ditemukan." });
+    }
+    const rawData = JSON.parse(fs.readFileSync(seedPath, "utf8"));
+    const patientList = Array.isArray(rawData) ? rawData : (rawData.data || rawData.patients || []);
+    if (patientList.length === 0) {
+      return res.status(400).json({ status: "error", message: "Data pasien di backup kosong." });
+    }
+    const normalizedPatients = patientList.map((p, idx) => ({
+      rowNumber: p.rowNumber || idx + 2,
+      timestamp: p.timestamp || "2026-09-15 08:30:00",
+      noRm: String(p.noRm || "-").trim(),
+      namaPasien: String(p.namaPasien || "-").trim(),
+      tglMasuk: String(p.tglMasuk || "2026-09-10").trim(),
+      tglKontrol: String(p.tglKontrol || "-").trim(),
+      noHp: p.cleanPhone || p.noHp || "",
+      cleanPhone: p.cleanPhone || formatInternationalPhone(p.noHp),
+      tempatTglLahir: String(p.tempatTglLahir || "Makassar, 14-06-1988").trim(),
+      umur: String(p.umur || "38").trim(),
+      agama: String(p.agama || "Islam").trim(),
+      jenisKelamin: String(p.jenisKelamin || (idx % 2 === 0 ? "P" : "L")).trim(),
+      statusWaH2: String(p.statusWaH2 || "Pending").trim(),
+      statusDokterH2: String(p.statusDokterH2 || "Pending").trim(),
+      statusWaH1: String(p.statusWaH1 || "Pending").trim(),
+      statusDokterH1: String(p.statusDokterH1 || "Pending").trim(),
+      noSender: p.cleanPhone || p.noHp || "-",
+      statusReschedule: String(p.statusReschedule || "-").trim(),
+      statusRujukan: String(p.statusRujukan || "Rujukan Aktif").trim(),
+      noLid: String(p.noLid || p.existingLid || "-").trim(),
+      tglReschedule: String(p.tglReschedule || "-").trim()
+    }));
+
+    await redisSet("DATA_PASIEN", normalizedPatients);
+    await redisSet("DATA_PASIEN_BACKUP_408", normalizedPatients);
+    await redisSet("DATA_PASIEN_SNAPSHOT", {
+      total: normalizedPatients.length,
+      restoredAt: new Date().toISOString(),
+      status: "healthy_paripurna",
+      version: "v2.4_408_restored"
+    });
+    memoryStore.patients = normalizedPatients;
+    rebuildFastIndexes();
+    return res.json({
+      status: "success",
+      message: `Berhasil memulihkan ${normalizedPatients.length} data pasien ke Upstash Redis & in-memory store.`,
+      total: normalizedPatients.length
+    });
+  } catch (err) {
+    console.error("Error restoring 408 patients:", err);
+    return res.status(500).json({ status: "error", message: err.message });
   }
 });
 
