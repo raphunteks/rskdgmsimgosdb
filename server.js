@@ -629,6 +629,34 @@ function cleanLidDigits(lid) {
   return String(lid).replace(/\D/g, "");
 }
 
+function parseRowRanges(input) {
+  if (!input) return [];
+  if (Array.isArray(input)) return input.map(r => parseInt(r, 10)).filter(r => !isNaN(r));
+  const sanitized = String(input).replace(/[–—]/g, "-").replace(/\.{2,}/g, "-");
+  const normalized = sanitized.replace(/\s*-\s*/g, "-");
+  const tokens = normalized.split(/[,;\s]+/).filter(Boolean);
+  const rows = new Set();
+
+  for (const token of tokens) {
+    if (token.includes("-")) {
+      const [startStr, endStr] = token.split("-");
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
+      if (!isNaN(start) && !isNaN(end)) {
+        const min = Math.min(start, end);
+        const max = Math.max(start, end);
+        for (let r = min; r <= max; r++) {
+          rows.add(r);
+        }
+      }
+    } else {
+      const r = parseInt(token, 10);
+      if (!isNaN(r)) rows.add(r);
+    }
+  }
+  return Array.from(rows).sort((a, b) => a - b);
+}
+
 function compileMessage(templateStr, patient, config) {
   if (!templateStr) return "";
 
@@ -750,11 +778,11 @@ function applySmartStatusUpdate(target, params) {
       target.statusWaH2 = "Hadir (Terkonfirmasi)";
       target.statusDokterH2 = "Hadir (Terkonfirmasi)";
     }
-  } 
+  }
   // B. BATAL MOBILE JKN (HANYA UPDATE KOLOM STATUS RESCHEDULE / KOLOM P)
   else if (updateType === "jkn_terbatalkan" || updateType === "terbatalkan" || customStatus.toLowerCase().includes("terbatalkan")) {
     target.statusReschedule = customStatus || "Terbatalkan Mobile JKN";
-  } 
+  }
   // C. UPDATE MANUAL / BOTH SESUAI TYPE
   else if (updateType === "both") {
     if (modeH === "h1") {
@@ -1185,7 +1213,7 @@ app.get(["/api", "/api/"], async (req, res) => {
       target.statusDokterH1 = "Pending";
       target.tglReschedule = newDate;
       target.statusReschedule = `Reschedule (${newDate})`;
-    } 
+    }
     // TAHAP 1: Pasien baru mengajukan reschedule tanpa tanggal
     else {
       target.statusReschedule = rawStatus || "Reschedule Diajukan";
@@ -1203,7 +1231,7 @@ app.get(["/api", "/api/"], async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      message: newDate 
+      message: newDate
         ? `Jadwal pasien ${target.namaPasien} berhasil dialihkan ke ${newDate}.`
         : `Status pasien ${target.namaPasien} berhasil ditandai sebagai '${target.statusReschedule}'.`,
       rowNumber: target.rowNumber,
@@ -1454,7 +1482,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      message: newDate 
+      message: newDate
         ? `Pasien ${target.namaPasien} (${target.noRm}) berhasil di-reschedule ke ${target.tglReschedule}.`
         : `Pasien ${target.namaPasien} status ditandai sebagai '${target.statusReschedule}'.`,
       data: target
@@ -1481,6 +1509,74 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
       status: "success",
       fixedCount: fixedCount,
       message: `${fixedCount} baris Kolom O (No Sender) berhasil distandarisasi ke format No WA Asli (628xxx).`
+    });
+  }
+
+  // 4b. Hapus Baris Pasien Massal via POST /api (Bulk Delete Rows)
+  if (action === "bulk_delete_rows" || action === "delete_patients_bulk") {
+    const { rows, range, rangeStr, startRow, endRow } = data;
+    let targetRowList = [];
+
+    if (Array.isArray(rows) && rows.length > 0) {
+      targetRowList = rows.map(r => parseInt(r, 10)).filter(r => !isNaN(r));
+    } else if (range || rangeStr) {
+      targetRowList = parseRowRanges(range || rangeStr);
+    } else if (startRow !== undefined && endRow !== undefined) {
+      const s = parseInt(startRow, 10);
+      const e = parseInt(endRow, 10);
+      if (!isNaN(s) && !isNaN(e)) {
+        const min = Math.min(s, e);
+        const max = Math.max(s, e);
+        for (let r = min; r <= max; r++) targetRowList.push(r);
+      }
+    }
+
+    if (targetRowList.length === 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "Nomor baris tidak valid. Masukkan rentang nomor baris (contoh: 550 - 600 atau 550, 552)."
+      });
+    }
+
+    const targetSet = new Set(targetRowList);
+    const deletedPatients = [];
+    const remainingPatients = [];
+
+    for (const p of memoryStore.patients) {
+      if (targetSet.has(p.rowNumber)) {
+        deletedPatients.push(p);
+      } else {
+        remainingPatients.push(p);
+      }
+    }
+
+    if (deletedPatients.length === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: `Tidak ada pasien yang ditemukan pada baris yang diminta (${Array.from(targetSet).slice(0, 5).join(", ")}${targetSet.size > 5 ? "..." : ""}).`
+      });
+    }
+
+    remainingPatients.forEach((p, idx) => {
+      p.rowNumber = idx + 2;
+    });
+
+    memoryStore.patients = remainingPatients;
+    rebuildFastIndexes();
+
+    try {
+      await persistSheet("DATA_PASIEN");
+    } catch (err) {
+      console.warn("Redis persist warning during bulk delete:", err.message);
+    }
+    scheduleBackgroundPersist("DATA_PASIEN");
+
+    return res.json({
+      status: "success",
+      message: `Berhasil menghapus ${deletedPatients.length} baris pasien secara permanen. Database Redis terupdate realtime!`,
+      deletedCount: deletedPatients.length,
+      remainingCount: memoryStore.patients.length,
+      deletedRows: Array.from(targetSet)
     });
   }
 
@@ -1973,8 +2069,81 @@ app.delete("/api/crud/patient/:row", async (req, res) => {
   if (idx === -1) return res.status(404).json({ status: "error", message: "Pasien tidak ditemukan" });
 
   memoryStore.patients.splice(idx, 1);
+  memoryStore.patients.forEach((p, i) => { p.rowNumber = i + 2; });
   scheduleBackgroundPersist("DATA_PASIEN");
   res.json({ status: "success", message: "Pasien berhasil dihapus" });
+});
+
+// Bulk Delete Patients by Row Range (Hapus Baris Massal)
+app.post("/api/crud/patients/bulk-delete", async (req, res) => {
+  const { rows, range, rangeStr, startRow, endRow } = req.body || {};
+  let targetRowList = [];
+
+  if (Array.isArray(rows) && rows.length > 0) {
+    targetRowList = rows.map(r => parseInt(r, 10)).filter(r => !isNaN(r));
+  } else if (range || rangeStr) {
+    targetRowList = parseRowRanges(range || rangeStr);
+  } else if (startRow !== undefined && endRow !== undefined) {
+    const s = parseInt(startRow, 10);
+    const e = parseInt(endRow, 10);
+    if (!isNaN(s) && !isNaN(e)) {
+      const min = Math.min(s, e);
+      const max = Math.max(s, e);
+      for (let r = min; r <= max; r++) targetRowList.push(r);
+    }
+  }
+
+  if (targetRowList.length === 0) {
+    return res.status(400).json({
+      status: "error",
+      message: "Nomor baris tidak valid. Masukkan rentang nomor baris (contoh: 550 - 600 atau 550, 552)."
+    });
+  }
+
+  const targetSet = new Set(targetRowList);
+  const deletedPatients = [];
+  const remainingPatients = [];
+
+  for (const p of memoryStore.patients) {
+    if (targetSet.has(p.rowNumber)) {
+      deletedPatients.push(p);
+    } else {
+      remainingPatients.push(p);
+    }
+  }
+
+  if (deletedPatients.length === 0) {
+    return res.status(404).json({
+      status: "error",
+      message: `Tidak ada pasien yang ditemukan pada baris yang diminta (${Array.from(targetSet).slice(0, 5).join(", ")}${targetSet.size > 5 ? "..." : ""}).`
+    });
+  }
+
+  remainingPatients.forEach((p, idx) => {
+    p.rowNumber = idx + 2;
+  });
+
+  memoryStore.patients = remainingPatients;
+  rebuildFastIndexes();
+
+  try {
+    await persistSheet("DATA_PASIEN");
+  } catch (err) {
+    console.warn("Redis persist warning during bulk delete:", err.message);
+  }
+  scheduleBackgroundPersist("DATA_PASIEN");
+
+  res.json({
+    status: "success",
+    message: `Berhasil menghapus ${deletedPatients.length} baris pasien secara permanen. Database Redis terupdate realtime!`,
+    deletedCount: deletedPatients.length,
+    remainingCount: memoryStore.patients.length,
+    deletedRows: Array.from(targetSet)
+  });
+});
+
+app.delete("/api/crud/patients/bulk-delete", async (req, res) => {
+  return app._router.handle(Object.assign(req, { method: "POST" }), res);
 });
 
 // CRUD SETTING
@@ -2135,8 +2304,8 @@ app.post("/api/sync/push", async (req, res) => {
       return res.status(500).json({ status: "error", message: "GAS_WEBAPP_URL belum dikonfigurasi di server." });
     }
 
-    const patientsToSend = memoryStore.patients && memoryStore.patients.length > 0 
-      ? memoryStore.patients 
+    const patientsToSend = memoryStore.patients && memoryStore.patients.length > 0
+      ? memoryStore.patients
       : loadInitialSeedPatients();
 
     if (!patientsToSend || patientsToSend.length === 0) {
