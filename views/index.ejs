@@ -1033,7 +1033,8 @@
     async function loadAllData(showNotification = false) {
       cancelActiveInlineEdit();
       try {
-        const res = await fetch("/api/data");
+        const reloadParam = showNotification ? "&reload=true" : "";
+        const res = await fetch(`/api/data?t=${Date.now()}${reloadParam}`, { cache: "no-store" });
         const json = await res.json();
         if (json.status === "success") {
           state.patients = json.data.patients || [];
