@@ -747,6 +747,192 @@ body[data-theme="blue-cyan"] {
   color: #ffffff;
 }
 
+/* =========================================================================
+   BULK DELETE ROWS CAPSULE (KAPSUL HAPUS BARIS MASSAL SPREADSHEET)
+   ========================================================================= */
+.bulk-delete-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 0 4px 0 10px;
+  gap: 4px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-sizing: border-box;
+  color: var(--text-main);
+  flex-shrink: 0;
+}
+
+.bulk-delete-pill:hover {
+  background: var(--toolbar-hover);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.bulk-delete-pill:focus-within {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  background: var(--bg-surface);
+}
+
+.bulk-delete-pill.has-value {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.bulk-delete-pill.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+
+.bulk-del-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.bulk-del-btn i {
+  font-size: 11px;
+  color: #ef4444;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.bulk-delete-pill:hover .bulk-del-btn i,
+.bulk-delete-pill.has-value .bulk-del-btn i {
+  transform: scale(1.15);
+}
+
+.bulk-delete-pill.active .bulk-del-btn i {
+  color: #ffffff !important;
+  transform: scale(1.15);
+}
+
+.bulk-delete-pill.active .bulk-del-btn {
+  color: #ffffff !important;
+}
+
+.bulk-del-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--glass-border);
+  opacity: 0.7;
+  margin: 0 2px;
+  transition: all 0.2s ease;
+}
+
+.bulk-delete-pill.has-value .bulk-del-divider {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+.bulk-delete-pill.active .bulk-del-divider {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.bulk-delete-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: inherit;
+  width: 62px;
+  min-width: 58px;
+  max-width: 110px;
+  padding: 0 2px;
+  margin: 0;
+  text-align: center;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease;
+  border-radius: 4px;
+}
+
+.bulk-delete-input:focus {
+  width: 86px;
+}
+
+.bulk-delete-pill.has-value .bulk-delete-input {
+  width: 78px;
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.bulk-delete-pill.active .bulk-delete-input {
+  color: #ffffff !important;
+}
+
+.bulk-delete-input::placeholder {
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+
+.bulk-delete-pill.has-value .bulk-delete-input::placeholder {
+  color: rgba(239, 68, 68, 0.6);
+}
+
+.bulk-delete-pill.active .bulk-delete-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bulk-delete-input::-webkit-outer-spin-button,
+.bulk-delete-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.bulk-del-clear {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-muted);
+  border: none;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin: 0 2px 0 0;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.bulk-del-clear:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  transform: scale(1.1);
+}
+
+.bulk-delete-pill.active .bulk-del-clear {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.bulk-delete-pill.active .bulk-del-clear:hover {
+  background: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+}
+
 .toolbar-right {
   display: flex;
   align-items: center;
