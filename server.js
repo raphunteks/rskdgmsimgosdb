@@ -489,6 +489,20 @@ function scheduleBackgroundPersist(sheetName) {
 // 3. SEEDING & SYNC SUBSYSTEM (FULL 19 COLUMNS)
 // ==========================================
 
+function isDummyPatient(p) {
+  if (!p) return false;
+  const name = String(p.namaPasien || p.nama || "").toLowerCase();
+  const rm = String(p.noRm || p.norm || "").toLowerCase();
+  if (name.includes("pasien contoh") || name.includes("contoh pasien") || name.includes("dummy")) return true;
+  if (/^00\.0\d\.12\.34$/.test(rm)) return true;
+  return false;
+}
+
+function sanitizeAndFilterDummy(patientList) {
+  if (!Array.isArray(patientList)) return [];
+  return patientList.filter(p => !isDummyPatient(p));
+}
+
 function formatInternationalPhone(phone) {
   if (!phone) return "";
   let clean = String(phone).replace(/[^\d]/g, "");
@@ -565,28 +579,43 @@ async function initializeDatabase() {
     redisGet("CUSTOM_PROMPT")
   ]);
 
-  if (!redisPatients || !Array.isArray(redisPatients) || redisPatients.length < 400) {
-    console.log("DATA_PASIEN di Redis belum lengkap, memeriksa key backup & seed files...");
+  // Bersihkan data dummy secara otomatis jika pernah tersusup
+  let cleanRedisPatients = Array.isArray(redisPatients) ? sanitizeAndFilterDummy(redisPatients) : [];
+
+  // =========================================================================
+  // KUNCI KEABADIAN DATABASE REDIS (ZERO-DUMMY PERMANENT STORAGE)
+  // Jika di Redis sudah ada data riil (berapapun jumlahnya: 408, 409, 500, dst.),
+  // server HANYA MEMBACA dan TIDAK PERNAH MENIMPA REDIS DENGAN DATA SEED/DUMMY!
+  // =========================================================================
+  if (cleanRedisPatients.length > 0) {
+    redisPatients = cleanRedisPatients;
+    console.log(`🔒 Data pasien riil di Upstash Redis aman & utuh (${redisPatients.length} pasien). Tidak melakukan re-seed.`);
+  } else {
+    // HANYA JIKA REDIS BENAR-BENAR KOSONG (0 Data):
+    console.log("⚠️ DATA_PASIEN di Redis kosong, memeriksa key cadangan riil...");
     let backupPatients = await redisGet("DATA_PASIEN_BACKUP_408");
-    if (Array.isArray(backupPatients) && backupPatients.length >= 400) {
-      redisPatients = backupPatients;
-      await redisSet("DATA_PASIEN", backupPatients);
-      console.log(`Recovered ${backupPatients.length} patients from Redis backup key.`);
+    let cleanBackup = Array.isArray(backupPatients) ? sanitizeAndFilterDummy(backupPatients) : [];
+
+    if (cleanBackup.length > 0) {
+      redisPatients = cleanBackup;
+      await redisSet("DATA_PASIEN", cleanBackup);
+      console.log(`🛡️ Berhasil memulihkan ${cleanBackup.length} pasien dari key cadangan Redis.`);
     } else {
-      const seedPatients = loadInitialSeedPatients();
+      const seedPatients = sanitizeAndFilterDummy(loadInitialSeedPatients());
       if (seedPatients && seedPatients.length > 0) {
         redisPatients = seedPatients;
         await redisSet("DATA_PASIEN", seedPatients);
         await redisSet("DATA_PASIEN_BACKUP_408", seedPatients);
-        console.log(`Successfully seeded ${seedPatients.length} patients from local seed file.`);
+        console.log(`📦 Berhasil inisialisasi awal ${seedPatients.length} pasien dari file backup lokal.`);
       } else if (GAS_URL) {
         try {
           const gasRes = await fetchGasJson(`${GAS_URL}?action=get_all_patient_phones`);
-          if (gasRes && Array.isArray(gasRes.data) && gasRes.data.length > 0) {
-            redisPatients = gasRes.data;
-            await redisSet("DATA_PASIEN", redisPatients);
-            await redisSet("DATA_PASIEN_BACKUP_408", redisPatients);
-            console.log(`Successfully hydrated ${redisPatients.length} patients from Google Sheets.`);
+          const cleanGas = Array.isArray(gasRes && gasRes.data) ? sanitizeAndFilterDummy(gasRes.data) : [];
+          if (cleanGas.length > 0) {
+            redisPatients = cleanGas;
+            await redisSet("DATA_PASIEN", cleanGas);
+            await redisSet("DATA_PASIEN_BACKUP_408", cleanGas);
+            console.log(`☁️ Berhasil inisialisasi ${cleanGas.length} pasien dari Google Sheets.`);
           }
         } catch (e) {
           console.warn("Hydrate from GAS notice:", e.message);
@@ -1510,35 +1539,55 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     });
   }
 
-  // 5. Append New Patients Scraped from Chrome Extension (Batch or Single Object)
+  // 5. Append New Patients Scraped from Chrome Extension (Batch or Single Object - UNBLOCKED INGESTION)
   if (action === "add_patients" || action === "append_patient" || Array.isArray(data) || Array.isArray(data.patients) || (data.namaPasien && data.noRm)) {
-    const list = Array.isArray(data) ? data : (Array.isArray(data.patients) ? data.patients : [data]);
-    const todayStr = getMakassarTodayStr();
-    const existingTodayPatients = new Set();
+    const rawList = Array.isArray(data) ? data : (Array.isArray(data.patients) ? data.patients : [data]);
+    // Saring dan buang data dummy agar tidak pernah masuk ke sistem
+    const list = sanitizeAndFilterDummy(rawList);
 
+    const existingKeys = new Set();
     for (const p of memoryStore.patients) {
-      const pDate = p.timestamp ? p.timestamp.substring(0, 10) : "";
-      if (p.namaPasien && (pDate === todayStr || p.tglMasuk === todayStr)) {
-        existingTodayPatients.add(String(p.namaPasien).trim().toLowerCase());
-      }
+      const cleanRm = p.noRm ? String(p.noRm).trim().replace(/[^\w]/g, "").toLowerCase() : "";
+      const tglK = String(p.tglKontrol || "").trim();
+      const pName = String(p.namaPasien || "").trim().toLowerCase();
+      if (cleanRm) existingKeys.add(`${cleanRm}_${tglK}`);
+      if (pName) existingKeys.add(`${pName}_${tglK}`);
     }
 
     let inserted = 0;
+    let updated = 0;
     let skipped = 0;
 
     for (const item of list) {
-      const patientName = String(item.namaPasien || item.nama || "").trim();
-      const normalizedName = patientName.toLowerCase();
-      const rm = String(item.noRm || item.norm || "-").trim();
-
-      if (!patientName && rm === "-") continue;
-
-      if (existingTodayPatients.has(normalizedName)) {
+      if (isDummyPatient(item)) {
         skipped++;
         continue;
       }
 
-      const nextRow = memoryStore.patients.length > 0 ? Math.max(...memoryStore.patients.map(x => x.rowNumber)) + 1 : 2;
+      const patientName = String(item.namaPasien || item.nama || "").trim();
+      const rawRm = String(item.noRm || item.norm || "-").trim();
+      const cleanRm = rawRm.replace(/[^\w]/g, "").toLowerCase();
+      const tglK = String(item.tglKontrol || item.tanggalKontrol || "-").trim();
+
+      if (!patientName && rawRm === "-") continue;
+
+      const rmDedupKey = cleanRm ? `${cleanRm}_${tglK}` : "";
+      const nameDedupKey = patientName ? `${patientName.toLowerCase()}_${tglK}` : "";
+
+      // Jika pasien sudah ada di tanggal kontrol yang sama persis: UPDATE datanya (jangan halangi)
+      let existingRecord = null;
+      if (cleanRm) {
+        existingRecord = memoryStore.patients.find(p => {
+          const pRm = String(p.noRm || "").replace(/[^\w]/g, "").toLowerCase();
+          return pRm === cleanRm && String(p.tglKontrol || "").trim() === tglK;
+        });
+      }
+      if (!existingRecord && patientName) {
+        existingRecord = memoryStore.patients.find(p => {
+          return String(p.namaPasien || "").trim().toLowerCase() === patientName.toLowerCase() && String(p.tglKontrol || "").trim() === tglK;
+        });
+      }
+
       const cleanHp = formatInternationalPhone(item.noHp || item.cleanPhone || item.phone);
       const statusRujukan = String(item.statusRujukan || "Rujukan Habis").trim();
       const statusReschedule = String(item.statusReschedule || "-").trim();
@@ -1547,43 +1596,65 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
       const cleanLid = rawLid ? cleanLidDigits(rawLid) : (rawSender && rawSender.length > 13 ? cleanLidDigits(rawSender) : "-");
       const tglResched = item.tglReschedule ? String(item.tglReschedule).trim() : "-";
 
-      const newRecord = {
-        rowNumber: nextRow,
-        timestamp: item.timestamp || new Date().toISOString().replace("T", " ").substring(0, 19),
-        noRm: rm,
-        namaPasien: patientName || "-",
-        tglMasuk: item.tglMasuk || todayStr,
-        tglKontrol: item.tglKontrol || item.tanggalKontrol || "-",
-        noHp: cleanHp || "-",
-        cleanPhone: cleanHp || "-",
-        tempatTglLahir: item.tempatTglLahir || "-",
-        umur: String(item.umur || "-"),
-        agama: item.agama || "-",
-        jenisKelamin: item.jenisKelamin || "-",
-        statusWaH2: "Pending",
-        statusDokterH2: "Pending",
-        statusWaH1: "Pending",
-        statusDokterH1: "Pending",
-        noSender: cleanLid !== "-" ? cleanLid : (cleanHp || "-"),
-        statusReschedule: statusReschedule || "-",
-        statusRujukan: statusRujukan,
-        noLid: cleanLid !== "-" ? cleanLid : "-",
-        tglReschedule: tglResched
-      };
+      if (existingRecord) {
+        // Update informasi terbaru tanpa menolak
+        if (cleanHp && cleanHp !== "-") {
+          existingRecord.cleanPhone = cleanHp;
+          existingRecord.noHp = cleanHp;
+        }
+        if (cleanLid !== "-") {
+          existingRecord.noLid = cleanLid;
+          existingRecord.noSender = cleanLid;
+        }
+        if (statusRujukan) existingRecord.statusRujukan = statusRujukan;
+        if (statusReschedule && statusReschedule !== "-") existingRecord.statusReschedule = statusReschedule;
+        if (tglResched && tglResched !== "-") existingRecord.tglReschedule = tglResched;
+        updated++;
+      } else {
+        // Pasien Baru: Langsung Tambahkan (UNBLOCKED)
+        const nextRow = memoryStore.patients.length > 0 ? Math.max(...memoryStore.patients.map(x => x.rowNumber || 0)) + 1 : 2;
 
-      memoryStore.patients.push(newRecord);
-      existingTodayPatients.add(normalizedName);
-      inserted++;
+        const newRecord = {
+          rowNumber: nextRow,
+          timestamp: item.timestamp || new Date().toISOString().replace("T", " ").substring(0, 19),
+          noRm: rawRm,
+          namaPasien: patientName || "-",
+          tglMasuk: item.tglMasuk || getMakassarTodayStr(),
+          tglKontrol: tglK,
+          noHp: cleanHp || "-",
+          cleanPhone: cleanHp || "-",
+          tempatTglLahir: item.tempatTglLahir || "-",
+          umur: String(item.umur || "-"),
+          agama: item.agama || "-",
+          jenisKelamin: item.jenisKelamin || "-",
+          statusWaH2: "Pending",
+          statusDokterH2: "Pending",
+          statusWaH1: "Pending",
+          statusDokterH1: "Pending",
+          noSender: cleanLid !== "-" ? cleanLid : (cleanHp || "-"),
+          statusReschedule: statusReschedule || "-",
+          statusRujukan: statusRujukan,
+          noLid: cleanLid !== "-" ? cleanLid : "-",
+          tglReschedule: tglResched
+        };
+
+        memoryStore.patients.push(newRecord);
+        if (rmDedupKey) existingKeys.add(rmDedupKey);
+        if (nameDedupKey) existingKeys.add(nameDedupKey);
+        inserted++;
+      }
     }
 
     rebuildFastIndexes();
     scheduleBackgroundPersist("DATA_PASIEN");
     return res.json({
       status: "success",
-      message: "Data pasien berhasil disimpan ke database (19 Kolom Lengkap).",
+      message: `Data pasien diproses lancar: ${inserted} pasien baru ditambahkan, ${updated} diperbarui.`,
       inserted: inserted,
       insertedCount: inserted,
-      skipped: skipped
+      updated: updated,
+      skipped: skipped,
+      totalPatients: memoryStore.patients.length
     });
   }
 
@@ -1901,34 +1972,39 @@ app.get("/api/data", (req, res) => {
 // CRUD PATIENT
 app.post("/api/crud/patient", async (req, res) => {
   const body = req.body || {};
-  const nextRow = memoryStore.patients.length > 0 ? Math.max(...memoryStore.patients.map(x => x.rowNumber)) + 1 : 2;
+  if (isDummyPatient(body)) {
+    return res.status(400).json({ status: "error", message: "Data dummy (Pasien Contoh) ditolak oleh sistem keamanan Redis." });
+  }
+
+  const nextRow = memoryStore.patients.length > 0 ? Math.max(...memoryStore.patients.map(x => x.rowNumber || 0)) + 1 : 2;
   const cleanWa = formatInternationalPhone(body.cleanPhone || body.noHp);
 
   const newPatient = {
     rowNumber: nextRow,
     timestamp: body.timestamp || new Date().toISOString().replace("T", " ").substring(0, 19),
-    noRm: body.noRm || "-",
-    namaPasien: body.namaPasien || "-",
-    tglMasuk: body.tglMasuk || "2026-09-10",
-    tglKontrol: body.tglKontrol || "-",
-    noHp: cleanWa,
-    cleanPhone: cleanWa,
-    tempatTglLahir: body.tempatTglLahir || "Makassar, 12-05-1990",
-    umur: body.umur || "32",
-    agama: body.agama || "Islam",
-    jenisKelamin: body.jenisKelamin || "P",
-    statusWaH2: body.statusWaH2 || "Pending",
-    statusDokterH2: body.statusDokterH2 || "Pending",
-    statusWaH1: body.statusWaH1 || "Pending",
-    statusDokterH1: body.statusDokterH1 || "Pending",
-    noSender: body.noSender || cleanWa || "-",
-    statusReschedule: body.statusReschedule || "-",
-    statusRujukan: body.statusRujukan || "Rujukan Aktif",
-    noLid: body.noLid || "-",
-    tglReschedule: body.tglReschedule || "-"
+    noRm: String(body.noRm || "-").trim(),
+    namaPasien: String(body.namaPasien || "-").trim(),
+    tglMasuk: body.tglMasuk || getMakassarTodayStr(),
+    tglKontrol: String(body.tglKontrol || "-").trim(),
+    noHp: cleanWa || "-",
+    cleanPhone: cleanWa || "-",
+    tempatTglLahir: String(body.tempatTglLahir || "Makassar, 12-05-1990").trim(),
+    umur: String(body.umur || "32").trim(),
+    agama: String(body.agama || "Islam").trim(),
+    jenisKelamin: String(body.jenisKelamin || "P").trim(),
+    statusWaH2: String(body.statusWaH2 || "Pending").trim(),
+    statusDokterH2: String(body.statusDokterH2 || "Pending").trim(),
+    statusWaH1: String(body.statusWaH1 || "Pending").trim(),
+    statusDokterH1: String(body.statusDokterH1 || "Pending").trim(),
+    noSender: cleanWa || body.noSender || "-",
+    statusReschedule: String(body.statusReschedule || "-").trim(),
+    statusRujukan: String(body.statusRujukan || "Rujukan Aktif").trim(),
+    noLid: String(body.noLid || "-").trim(),
+    tglReschedule: String(body.tglReschedule || "-").trim()
   };
 
   memoryStore.patients.push(newPatient);
+  rebuildFastIndexes();
   scheduleBackgroundPersist("DATA_PASIEN");
   res.json({ status: "success", message: "Pasien berhasil ditambahkan", data: newPatient });
 });
@@ -2143,11 +2219,11 @@ app.post("/api/sync/push", async (req, res) => {
 
     console.log(`📊 Total pasien di server: ${patientsToSend.length}, di Spreadsheet saat ini: ${currentGasCount}`);
 
-    // Jika spreadsheet sudah lengkap >= 408
-    if (currentGasCount >= 408) {
+    // Jika spreadsheet sudah memiliki semua data pasien yang ada di server
+    if (currentGasCount >= patientsToSend.length) {
       return res.json({
         status: "success",
-        message: `Google Spreadsheet sudah lengkap memiliki ${currentGasCount} data pasien secara utuh (Target 408 terpenuhi).`,
+        message: `Google Spreadsheet sudah lengkap memiliki seluruh ${currentGasCount} data pasien secara utuh.`,
         total: currentGasCount
       });
     }
@@ -2162,7 +2238,7 @@ app.post("/api/sync/push", async (req, res) => {
       if (nm) gasNameSet.add(nm);
     });
 
-    const needed = Math.max(0, 408 - currentGasCount);
+    const needed = Math.max(0, patientsToSend.length - currentGasCount);
     const missingPatients = [];
     const serverRmCounts = {};
     for (const p of patientsToSend) {
