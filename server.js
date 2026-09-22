@@ -923,7 +923,7 @@ app.get(["/api", "/api/"], async (req, res) => {
       const cleanWa = formatInternationalPhone(p.cleanPhone || p.noHp);
       const rawLid = String(p.noLid || "").trim();
       const rawSender = String(p.noSender || "").trim();
-      const isLidEmpty = !rawLid || rawLid === "-" || rawLid.length < 13;
+      const isLidEmpty = !rawLid || rawLid === "-" || rawLid.length < 10 || rawLid.startsWith("62");
 
       if (cleanWa && (!onlyUnlinked || isLidEmpty)) {
         patients.push({
@@ -1644,7 +1644,9 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
         }
         if (cleanLid !== "-") {
           existingRecord.noLid = cleanLid;
-          existingRecord.noSender = cleanLid;
+        }
+        if (cleanHp && cleanHp !== "-") {
+          existingRecord.noSender = cleanHp;
         }
         if (statusRujukan) existingRecord.statusRujukan = statusRujukan;
         if (statusReschedule && statusReschedule !== "-") existingRecord.statusReschedule = statusReschedule;
@@ -1670,7 +1672,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
           statusDokterH2: "Pending",
           statusWaH1: "Pending",
           statusDokterH1: "Pending",
-          noSender: cleanLid !== "-" ? cleanLid : (cleanHp || "-"),
+          noSender: cleanHp || "-",
           statusReschedule: statusReschedule || "-",
           statusRujukan: statusRujukan,
           noLid: cleanLid !== "-" ? cleanLid : "-",
