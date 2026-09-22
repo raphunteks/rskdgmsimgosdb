@@ -319,6 +319,19 @@
           <button type="button" class="custom-h-clear" id="custom-h-clear-btn" onclick="clearCustomHFilter(event)"
             title="Reset Filter H-">&times;</button>
         </div>
+        <!-- Bulk Delete Rows Pill (Kapsul Hapus Baris Massal Sesuai Spreadsheet) -->
+        <div class="bulk-delete-pill" id="bulk-delete-container" title="Hapus baris massal sesuai nomor baris spreadsheet (contoh: 550 - 600 atau 550, 552)">
+          <button type="button" class="bulk-del-btn" id="bulk-del-trigger" onclick="executeBulkDelete()" title="Klik untuk hapus baris yang diketik">
+            <i class="fas fa-trash-alt"></i> <span>Hapus</span>
+          </button>
+          <div class="bulk-del-divider"></div>
+          <input type="text" id="bulk-delete-input" class="bulk-delete-input" placeholder="550-600..."
+            autocomplete="off" spellcheck="false"
+            title="Ketik nomor baris spreadsheet yang ingin dihapus (contoh: 550 - 600 atau 550, 552)"
+            onkeydown="handleBulkDeleteKey(event)" oninput="handleBulkDeleteInput(this.value)">
+          <button type="button" class="bulk-del-clear" id="bulk-del-clear-btn" onclick="clearBulkDeleteInput(event)"
+            title="Kosongkan Input">&times;</button>
+        </div>
         <button class="filter-btn" data-filter="reschedule" onclick="applyFilter('reschedule')">
           <i class="fas fa-history"></i> Reschedule
         </button>
@@ -2369,6 +2382,149 @@
       } else if (e.key === "Escape") {
         e.preventDefault();
         clearCustomHFilter(e);
+      }
+    }
+
+    // Bulk Delete Rows (Hapus Baris Massal Sesuai Spreadsheet)
+    function parseRowRanges(input) {
+      if (!input || !input.trim()) return [];
+      const sanitized = String(input).replace(/[–—]/g, "-").replace(/\.{2,}/g, "-");
+      const normalized = sanitized.replace(/\s*-\s*/g, "-");
+      const tokens = normalized.split(/[,;\s]+/).filter(Boolean);
+      const rows = new Set();
+
+      for (const token of tokens) {
+        if (token.includes("-")) {
+          const [startStr, endStr] = token.split("-");
+          const start = parseInt(startStr, 10);
+          const end = parseInt(endStr, 10);
+          if (!isNaN(start) && !isNaN(end)) {
+            const min = Math.min(start, end);
+            const max = Math.max(start, end);
+            for (let r = min; r <= max; r++) {
+              rows.add(r);
+            }
+          }
+        } else {
+          const r = parseInt(token, 10);
+          if (!isNaN(r)) rows.add(r);
+        }
+      }
+      return Array.from(rows).sort((a, b) => a - b);
+    }
+
+    function handleBulkDeleteInput(val) {
+      const container = document.getElementById("bulk-delete-container");
+      const clearBtn = document.getElementById("bulk-del-clear-btn");
+      const raw = String(val || "").trim();
+
+      if (raw !== "") {
+        if (container) {
+          container.classList.add("has-value");
+        }
+        if (clearBtn) clearBtn.style.display = "inline-flex";
+      } else {
+        if (container) {
+          container.classList.remove("has-value");
+          container.classList.remove("active");
+        }
+        if (clearBtn) clearBtn.style.display = "none";
+      }
+    }
+
+    function clearBulkDeleteInput(e) {
+      if (e) e.stopPropagation();
+      const inp = document.getElementById("bulk-delete-input");
+      const container = document.getElementById("bulk-delete-container");
+      const clearBtn = document.getElementById("bulk-del-clear-btn");
+      if (inp) {
+        inp.value = "";
+        inp.focus();
+      }
+      if (container) {
+        container.classList.remove("has-value");
+        container.classList.remove("active");
+      }
+      if (clearBtn) clearBtn.style.display = "none";
+    }
+
+    function handleBulkDeleteKey(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        executeBulkDelete();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clearBulkDeleteInput();
+      }
+    }
+
+    async function executeBulkDelete() {
+      const inp = document.getElementById("bulk-delete-input");
+      const container = document.getElementById("bulk-delete-container");
+      const raw = inp ? inp.value.trim() : "";
+
+      if (!raw) {
+        showToast("Ketik nomor baris yang ingin dihapus (contoh: 550 - 600 atau 550, 552)", "warning");
+        if (inp) inp.focus();
+        return;
+      }
+
+      const rowsToDelete = parseRowRanges(raw);
+      if (rowsToDelete.length === 0) {
+        showToast("Format nomor baris tidak valid. Gunakan format seperti: 550 - 600 atau 550, 552", "error");
+        return;
+      }
+
+      // Cari baris yang cocok di data pasien aktif
+      const targetRowsSet = new Set(rowsToDelete);
+      const matchedPatients = (state.patients || []).filter(p => targetRowsSet.has(p.rowNumber));
+
+      if (matchedPatients.length === 0) {
+        const activeRows = (state.patients || []).map(p => p.rowNumber);
+        const minRow = activeRows.length > 0 ? Math.min(...activeRows) : 2;
+        const maxRow = activeRows.length > 0 ? Math.max(...activeRows) : 2;
+        showToast(`Tidak ada data pasien di baris ${raw}. Baris aktif saat ini: ${minRow} s.d. ${maxRow}.`, "warning");
+        return;
+      }
+
+      const minTgt = Math.min(...rowsToDelete);
+      const maxTgt = Math.max(...rowsToDelete);
+      const rangeDisplay = rowsToDelete.length === 1 
+        ? `Baris ${rowsToDelete[0]}` 
+        : (rowsToDelete.length === (maxTgt - minTgt + 1) ? `Baris ${minTgt} s.d ${maxTgt}` : `${rowsToDelete.length} nomor baris`);
+
+      const confirmed = confirm(
+        `⚠️ KONFIRMASI HAPUS BARIS MASSAL\n\n` +
+        `Anda akan menghapus ${matchedPatients.length} baris pasien (${rangeDisplay}) secara PERMANEN dari database dan Redis.\n\n` +
+        `Pasien pertama: ${matchedPatients[0]?.namaPasien || "-"} (${matchedPatients[0]?.noRm || "-"})\n` +
+        (matchedPatients.length > 1 ? `Pasien terakhir: ${matchedPatients[matchedPatients.length - 1]?.namaPasien || "-"} (${matchedPatients[matchedPatients.length - 1]?.noRm || "-"})\n\n` : `\n`) +
+        `Apakah Anda yakin ingin melanjutkan penghapusan?`
+      );
+
+      if (!confirmed) return;
+
+      if (container) container.classList.add("active");
+      showToast(`Sedang menghapus ${matchedPatients.length} baris pasien dan menyimpan ke Redis...`);
+
+      try {
+        const res = await fetch("/api/crud/patients/bulk-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: rowsToDelete, rangeStr: raw })
+        });
+        const json = await res.json();
+
+        if (json.status === "success") {
+          showToast(`Berhasil! ${json.deletedCount} baris pasien telah dihapus dan disimpan ke Redis.`, "success");
+          clearBulkDeleteInput();
+          await loadAllData();
+        } else {
+          showToast(json.message || "Gagal menghapus baris pasien", "error");
+        }
+      } catch (err) {
+        showToast(`Terjadi kesalahan: ${err.message}`, "error");
+      } finally {
+        if (container) container.classList.remove("active");
       }
     }
 
