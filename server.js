@@ -741,6 +741,7 @@ function applySmartStatusUpdate(target, params) {
   }
 
   // 2. Eksekusi Pembaruan Data
+  // A. KONFIRMASI HADIR (Update Pasien & Dokter Serentak Sesuai Mode H)
   if (updateType === "konfirmasi_hadir" || customStatus.toLowerCase().includes("hadir")) {
     if (modeH === "h1") {
       target.statusWaH1 = "Hadir (Terkonfirmasi)";
@@ -749,16 +750,13 @@ function applySmartStatusUpdate(target, params) {
       target.statusWaH2 = "Hadir (Terkonfirmasi)";
       target.statusDokterH2 = "Hadir (Terkonfirmasi)";
     }
-  } else if (updateType === "jkn_terbatalkan" || updateType === "terbatalkan" || customStatus.toLowerCase().includes("terbatalkan")) {
-    if (modeH === "h1") {
-      target.statusWaH1 = "Batal Mobile JKN";
-      target.statusDokterH1 = "Batal Mobile JKN";
-    } else {
-      target.statusWaH2 = "Batal Mobile JKN";
-      target.statusDokterH2 = "Batal Mobile JKN";
-    }
-    target.statusReschedule = "Terbatalkan Mobile JKN";
-  } else if (updateType === "both") {
+  } 
+  // B. BATAL MOBILE JKN (HANYA UPDATE KOLOM STATUS RESCHEDULE / KOLOM P)
+  else if (updateType === "jkn_terbatalkan" || updateType === "terbatalkan" || customStatus.toLowerCase().includes("terbatalkan")) {
+    target.statusReschedule = customStatus || "Terbatalkan Mobile JKN";
+  } 
+  // C. UPDATE MANUAL / BOTH SESUAI TYPE
+  else if (updateType === "both") {
     if (modeH === "h1") {
       target.statusWaH1 = customStatus;
       target.statusDokterH1 = customDoctorStatus;
@@ -1085,7 +1083,7 @@ app.get(["/api", "/api/"], async (req, res) => {
 
     const cleanRawDigits = qRaw.replace(/@.*/, "").replace(/\D/g, "");
     const explicitPhone = paramPhone ? cleanPhoneDigits(paramPhone) : (cleanRawDigits && cleanRawDigits.length <= 15 ? cleanRawDigits : "");
-    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (cleanRawDigits && cleanRawDigits.length >= 10 ? cleanRawDigits : "");
+    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (cleanRawDigits && cleanRawDigits.length >= 10 ? cleanLidDigits(cleanRawDigits) : "");
     const q = qRaw.toLowerCase().replace(/@.*/, "").trim();
 
     if (!q && !explicitPhone && !explicitLid) {
@@ -1413,16 +1411,25 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     });
   }
 
-  // 3. Reschedule Patient via POST
+  // 3. Reschedule Patient via POST (Lengkap dengan Pencarian Cerdas & Dua Tahap)
   if (action === "reschedule_patient") {
-    const noRm = String(data.noRm || data.norm || req.query.noRm || "").trim();
+    const noRmTarget = String(data.noRm || data.norm || req.query.noRm || "").trim().toLowerCase();
+    const noHpTarget = cleanPhoneDigits(data.noHp || data.phone || req.query.noHp);
+    const noSenderTarget = cleanLidDigits(data.noSender || data.no_lid || req.query.no_lid);
+    const rowTarget = data.row || req.query.row ? parseInt(data.row || req.query.row, 10) : null;
+
     const rawDateInput = String(data.newDate || data.newdate || req.query.newDate || "").trim();
     const dateMatch = rawDateInput.match(/\b(\d{4}-\d{2}-\d{2})\b/);
     const newDate = dateMatch ? dateMatch[1] : "";
-    const cleanRm = noRm.toLowerCase().replace(/[^\w]/g, "");
-    const target = cleanRm ? fastIndex.byRm.get(cleanRm) : null;
+    const rawStatus = String(data.status || data.customStatus || req.query.status || "").trim();
 
-    if (!target) return res.status(200).json({ status: "error", message: "Pasien tidak ditemukan." });
+    let target = null;
+    if (rowTarget && rowTarget > 1) target = fastIndex.byRow.get(rowTarget);
+    if (!target && noRmTarget) target = fastIndex.byRm.get(noRmTarget.replace(/[^\w]/g, ""));
+    if (!target && noHpTarget) target = fastIndex.byPhone.get(formatInternationalPhone(noHpTarget));
+    if (!target && noSenderTarget) target = fastIndex.byLid.get(noSenderTarget);
+
+    if (!target) return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan." });
 
     if (newDate) {
       target.statusWaH2 = "Pending";
@@ -1432,8 +1439,15 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
       target.tglReschedule = newDate;
       target.statusReschedule = `Reschedule (${newDate})`;
     } else {
-      target.statusReschedule = data.status || data.customStatus || "Reschedule Diajukan";
+      target.statusReschedule = rawStatus || "Reschedule Diajukan";
     }
+
+    const cleanPhoneResched = formatInternationalPhone(data.noSender || data.phone || data.noHp || req.query.noSender);
+    const cleanLidResched = cleanLidDigits(data.no_lid || data.lid || req.query.no_lid);
+
+    if (cleanPhoneResched) target.noSender = cleanPhoneResched;
+    else if (!target.noSender || target.noSender === "-") target.noSender = formatInternationalPhone(target.noHp) || "-";
+    if (cleanLidResched) target.noLid = cleanLidResched;
 
     rebuildFastIndexes();
     scheduleBackgroundPersist("DATA_PASIEN");
