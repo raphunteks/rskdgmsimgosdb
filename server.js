@@ -426,8 +426,46 @@ async function redisGet(key) {
 }
 
 async function redisSet(key, value) {
-  const str = typeof value === "string" ? value : JSON.stringify(value);
-  return await redisCommand("set", key, str);
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return null;
+  const maxRetries = 3;
+  const payload = typeof value === "string" ? value : JSON.stringify(value);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const url = `${UPSTASH_URL}/set/${encodeURIComponent(key)}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${UPSTASH_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: payload,
+        signal: controller.signal,
+        keepalive: true
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, attempt * 150));
+          continue;
+        }
+        return null;
+      }
+      const data = await res.json();
+      return data.result;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, attempt * 200));
+      } else {
+        console.warn(`Upstash Redis POST set error (${key}):`, err.message);
+      }
+    }
+  }
+  return null;
 }
 
 let persistTimeouts = {};
@@ -461,8 +499,11 @@ function formatInternationalPhone(phone) {
 
 function loadInitialSeedPatients() {
   const seedPaths = [
+    path.join(process.cwd(), "data", "backup_patients_408.json"),
     path.join(__dirname, "data", "backup_patients_408.json"),
+    path.join(process.cwd(), "data", "patients_gas.json"),
     path.join(__dirname, "data", "patients_gas.json"),
+    path.join(process.cwd(), "data", "initial_seed.json"),
     path.join(__dirname, "data", "initial_seed.json")
   ];
 
@@ -470,30 +511,30 @@ function loadInitialSeedPatients() {
     if (fs.existsSync(sp)) {
       try {
         const raw = JSON.parse(fs.readFileSync(sp, "utf8"));
-        const list = Array.isArray(raw.data) ? raw.data : (Array.isArray(raw.patients) ? raw.patients : []);
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw.data) ? raw.data : (Array.isArray(raw.patients) ? raw.patients : []));
         if (list.length > 0) {
           return list.map((p, idx) => ({
             rowNumber: p.rowNumber || idx + 2,
             timestamp: p.timestamp || "2026-09-15 08:30:00",
-            noRm: p.noRm || "-",
-            namaPasien: p.namaPasien || "-",
-            tglMasuk: p.tglMasuk || "2026-09-10",
-            tglKontrol: p.tglKontrol || "-",
+            noRm: String(p.noRm || "-").trim(),
+            namaPasien: String(p.namaPasien || "-").trim(),
+            tglMasuk: String(p.tglMasuk || "2026-09-10").trim(),
+            tglKontrol: String(p.tglKontrol || "-").trim(),
             noHp: p.cleanPhone || p.noHp || "",
             cleanPhone: p.cleanPhone || formatInternationalPhone(p.noHp),
-            tempatTglLahir: p.tempatTglLahir || "Makassar, 12-05-1990",
-            umur: p.umur || "34",
-            agama: p.agama || "Islam",
-            jenisKelamin: p.jenisKelamin || (idx % 2 === 0 ? "P" : "L"),
-            statusWaH2: p.statusWaH2 || "Pending",
-            statusDokterH2: p.statusDokterH2 || "Pending",
-            statusWaH1: p.statusWaH1 || "Pending",
-            statusDokterH1: p.statusDokterH1 || "Pending",
+            tempatTglLahir: String(p.tempatTglLahir || "Makassar, 14-06-1988").trim(),
+            umur: String(p.umur || "38").trim(),
+            agama: String(p.agama || "Islam").trim(),
+            jenisKelamin: String(p.jenisKelamin || (idx % 2 === 0 ? "P" : "L")).trim(),
+            statusWaH2: String(p.statusWaH2 || "Pending").trim(),
+            statusDokterH2: String(p.statusDokterH2 || "Pending").trim(),
+            statusWaH1: String(p.statusWaH1 || "Pending").trim(),
+            statusDokterH1: String(p.statusDokterH1 || "Pending").trim(),
             noSender: p.cleanPhone || p.noHp || "-",
-            statusReschedule: p.statusReschedule || "-",
-            statusRujukan: p.statusRujukan || "Rujukan Aktif",
-            noLid: p.noLid || p.existingLid || "-",
-            tglReschedule: p.tglReschedule || "-"
+            statusReschedule: String(p.statusReschedule || "-").trim(),
+            statusRujukan: String(p.statusRujukan || "Rujukan Aktif").trim(),
+            noLid: String(p.noLid || p.existingLid || "-").trim(),
+            tglReschedule: String(p.tglReschedule || "-").trim()
           }));
         }
       } catch (err) {
@@ -502,34 +543,7 @@ function loadInitialSeedPatients() {
     }
   }
 
-  // Fallback 10 dummy patients
-  const fallback = [];
-  for (let i = 1; i <= 10; i++) {
-    fallback.push({
-      rowNumber: i + 1,
-      timestamp: "2026-09-15 08:30:00",
-      noRm: `00.0${i}.12.34`,
-      namaPasien: `Pasien Contoh ${i}`,
-      tglMasuk: "2026-09-10",
-      tglKontrol: "2026-09-17",
-      noHp: `628123456789${i % 10}`,
-      cleanPhone: `628123456789${i % 10}`,
-      tempatTglLahir: "Makassar, 12-05-1990",
-      umur: "34",
-      agama: "Islam",
-      jenisKelamin: i % 2 === 0 ? "P" : "L",
-      statusWaH2: "Pending",
-      statusDokterH2: "Pending",
-      statusWaH1: "Pending",
-      statusDokterH1: "Pending",
-      noSender: `628123456789${i % 10}`,
-      statusReschedule: "-",
-      statusRujukan: "Rujukan Aktif",
-      noLid: "-",
-      tglReschedule: "-"
-    });
-  }
-  return fallback;
+  return [];
 }
 
 let dbInitPromise = null;
@@ -551,38 +565,61 @@ async function initializeDatabase() {
     redisGet("CUSTOM_PROMPT")
   ]);
 
-  if (!redisPatients || !Array.isArray(redisPatients) || redisPatients.length === 0) {
-    console.log("Seeding DATA_PASIEN into Redis from local seed file...");
-    const seedPatients = loadInitialSeedPatients();
-    await redisSet("DATA_PASIEN", seedPatients);
-    memoryStore.patients = seedPatients;
-    console.log(`Successfully seeded ${seedPatients.length} patients.`);
-  } else {
-    // If loaded patients lack full columns, enrich with seed data
+  if (!redisPatients || !Array.isArray(redisPatients) || redisPatients.length < 400) {
+    console.log("DATA_PASIEN di Redis belum lengkap, memeriksa key backup & seed files...");
+    let backupPatients = await redisGet("DATA_PASIEN_BACKUP_408");
+    if (Array.isArray(backupPatients) && backupPatients.length >= 400) {
+      redisPatients = backupPatients;
+      await redisSet("DATA_PASIEN", backupPatients);
+      console.log(`Recovered ${backupPatients.length} patients from Redis backup key.`);
+    } else {
+      const seedPatients = loadInitialSeedPatients();
+      if (seedPatients && seedPatients.length > 0) {
+        redisPatients = seedPatients;
+        await redisSet("DATA_PASIEN", seedPatients);
+        await redisSet("DATA_PASIEN_BACKUP_408", seedPatients);
+        console.log(`Successfully seeded ${seedPatients.length} patients from local seed file.`);
+      } else if (GAS_URL) {
+        try {
+          const gasRes = await fetchGasJson(`${GAS_URL}?action=get_all_patient_phones`);
+          if (gasRes && Array.isArray(gasRes.data) && gasRes.data.length > 0) {
+            redisPatients = gasRes.data;
+            await redisSet("DATA_PASIEN", redisPatients);
+            await redisSet("DATA_PASIEN_BACKUP_408", redisPatients);
+            console.log(`Successfully hydrated ${redisPatients.length} patients from Google Sheets.`);
+          }
+        } catch (e) {
+          console.warn("Hydrate from GAS notice:", e.message);
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(redisPatients) && redisPatients.length > 0) {
     memoryStore.patients = redisPatients.map((p, idx) => ({
       rowNumber: p.rowNumber || idx + 2,
       timestamp: p.timestamp || "2026-09-15 08:30:00",
-      noRm: p.noRm || "-",
-      namaPasien: p.namaPasien || "-",
+      noRm: String(p.noRm || "-").trim(),
+      namaPasien: String(p.namaPasien || "-").trim(),
       tglMasuk: (p.tglMasuk && p.tglMasuk !== "-") ? p.tglMasuk : "2026-09-10",
-      tglKontrol: p.tglKontrol || "-",
+      tglKontrol: String(p.tglKontrol || "-").trim(),
       noHp: p.cleanPhone || p.noHp || "",
       cleanPhone: p.cleanPhone || formatInternationalPhone(p.noHp),
       tempatTglLahir: (p.tempatTglLahir && p.tempatTglLahir !== "-") ? p.tempatTglLahir : "Makassar, 14-06-1988",
       umur: (p.umur && p.umur !== "-") ? p.umur : "38",
       agama: (p.agama && p.agama !== "-") ? p.agama : "Islam",
       jenisKelamin: (p.jenisKelamin && p.jenisKelamin !== "-") ? p.jenisKelamin : (idx % 2 === 0 ? "P" : "L"),
-      statusWaH2: p.statusWaH2 || "Pending",
-      statusDokterH2: p.statusDokterH2 || "Pending",
-      statusWaH1: p.statusWaH1 || "Pending",
-      statusDokterH1: p.statusDokterH1 || "Pending",
+      statusWaH2: String(p.statusWaH2 || "Pending").trim(),
+      statusDokterH2: String(p.statusDokterH2 || "Pending").trim(),
+      statusWaH1: String(p.statusWaH1 || "Pending").trim(),
+      statusDokterH1: String(p.statusDokterH1 || "Pending").trim(),
       noSender: p.cleanPhone || p.noHp || "-",
-      statusReschedule: p.statusReschedule || "-",
-      statusRujukan: p.statusRujukan || "Rujukan Aktif",
-      noLid: p.noLid || p.existingLid || "-",
-      tglReschedule: p.tglReschedule || "-"
+      statusReschedule: String(p.statusReschedule || "-").trim(),
+      statusRujukan: String(p.statusRujukan || "Rujukan Aktif").trim(),
+      noLid: String(p.noLid || p.existingLid || "-").trim(),
+      tglReschedule: String(p.tglReschedule || "-").trim()
     }));
-    console.log(`Loaded and validated ${redisPatients.length} patients from Redis.`);
+    console.log(`Loaded and validated ${memoryStore.patients.length} patients from Redis.`);
   }
 
   if (!redisSettings || !Array.isArray(redisSettings) || redisSettings.length === 0) {
@@ -2209,15 +2246,70 @@ app.post("/api/sync/push", async (req, res) => {
 app.post("/api/restore-408", async (req, res) => {
   try {
     console.log("🚀 Menerima permintaan pemulihan 408 Pasien ke Upstash Redis...");
-    const seedPath = path.join(__dirname, "data", "backup_patients_408.json");
-    if (!fs.existsSync(seedPath)) {
-      return res.status(404).json({ status: "error", message: "File backup_patients_408.json tidak ditemukan." });
+    let patientList = null;
+
+    // 1. Cek jika dikirim via request body
+    if (req.body && (Array.isArray(req.body) || Array.isArray(req.body.patients) || Array.isArray(req.body.data))) {
+      patientList = Array.isArray(req.body) ? req.body : (req.body.patients || req.body.data);
     }
-    const rawData = JSON.parse(fs.readFileSync(seedPath, "utf8"));
-    const patientList = Array.isArray(rawData) ? rawData : (rawData.data || rawData.patients || []);
-    if (patientList.length === 0) {
-      return res.status(400).json({ status: "error", message: "Data pasien di backup kosong." });
+
+    // 2. Cek backup key di Upstash Redis
+    if (!patientList || patientList.length === 0) {
+      try {
+        const fromRedis = await redisGet("DATA_PASIEN_BACKUP_408") || await redisGet("DATA_PASIEN");
+        if (Array.isArray(fromRedis) && fromRedis.length >= 400) {
+          patientList = fromRedis;
+          console.log(`📦 Mengambil ${patientList.length} data pasien dari backup Redis.`);
+        }
+      } catch (e) {
+        console.warn("Redis backup read notice:", e.message);
+      }
     }
+
+    // 3. Cek file lokal di berbagai path candidate
+    if (!patientList || patientList.length === 0) {
+      const candidatePaths = [
+        path.join(process.cwd(), "data", "backup_patients_408.json"),
+        path.join(__dirname, "data", "backup_patients_408.json"),
+        path.join(process.cwd(), "data", "patients_gas.json"),
+        path.join(__dirname, "data", "patients_gas.json"),
+        path.join(process.cwd(), "data", "initial_seed.json"),
+        path.join(__dirname, "data", "initial_seed.json")
+      ];
+      for (const cp of candidatePaths) {
+        if (fs.existsSync(cp)) {
+          try {
+            const rawData = JSON.parse(fs.readFileSync(cp, "utf8"));
+            const list = Array.isArray(rawData) ? rawData : (rawData.data || rawData.patients || []);
+            if (list.length > 0) {
+              patientList = list;
+              console.log(`📦 Terbaca ${patientList.length} pasien dari ${cp}`);
+              break;
+            }
+          } catch (e) {
+            console.warn("Notice reading", cp, e.message);
+          }
+        }
+      }
+    }
+
+    // 4. Cek Google Apps Script jika masih belum ada
+    if (!patientList || patientList.length === 0) {
+      try {
+        const gasCheck = await fetchGasJson(`${GAS_URL}?action=get_all_patient_phones`);
+        if (gasCheck && Array.isArray(gasCheck.data) && gasCheck.data.length > 0) {
+          patientList = gasCheck.data;
+          console.log(`📦 Terbaca ${patientList.length} pasien dari Google Sheets.`);
+        }
+      } catch (e) {
+        console.warn("GAS fallback read notice:", e.message);
+      }
+    }
+
+    if (!patientList || patientList.length === 0) {
+      return res.status(404).json({ status: "error", message: "Data backup 408 pasien tidak ditemukan di Redis, File, maupun Google Sheets." });
+    }
+
     const normalizedPatients = patientList.map((p, idx) => ({
       rowNumber: p.rowNumber || idx + 2,
       timestamp: p.timestamp || "2026-09-15 08:30:00",
