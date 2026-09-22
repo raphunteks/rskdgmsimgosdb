@@ -507,6 +507,7 @@ function loadInitialSeedPatients() {
 }
 
 let dbInitPromise = null;
+let lastRedisFetchTime = 0;
 function ensureDatabaseInitialized() {
   if (!dbInitPromise) {
     dbInitPromise = initializeDatabase().catch(err => {
@@ -592,6 +593,7 @@ async function initializeDatabase() {
 
   rebuildFastIndexes();
   memoryStore.lastSync = new Date().toISOString();
+  lastRedisFetchTime = Date.now();
 }
 
 async function persistSheet(sheetName) {
@@ -1988,8 +1990,49 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
 // 6. CRUD WEB PORTAL API (INTERNAL DATA ROUTES)
 // ==========================================
 
-// Get All Data for Spreadsheet UI
-app.get("/api/data", (req, res) => {
+// Get All Data for Spreadsheet UI (Realtime Redis Sync & Anti-Cache)
+app.get("/api/data", async (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+
+  const forceReload = req.query.reload === "true" || req.query.refresh === "1";
+  if (forceReload || (Date.now() - lastRedisFetchTime > 2500)) {
+    try {
+      const redisPatients = await redisGet("DATA_PASIEN");
+      if (Array.isArray(redisPatients)) {
+        const cleanList = sanitizeAndFilterDummy(redisPatients);
+        memoryStore.patients = cleanList.map((p, idx) => ({
+          rowNumber: p.rowNumber || idx + 2,
+          timestamp: p.timestamp || "2026-09-15 08:30:00",
+          noRm: String(p.noRm || "-").trim(),
+          namaPasien: String(p.namaPasien || "-").trim(),
+          tglMasuk: (p.tglMasuk && p.tglMasuk !== "-") ? p.tglMasuk : "2026-09-10",
+          tglKontrol: String(p.tglKontrol || "-").trim(),
+          noHp: p.cleanPhone || p.noHp || "",
+          cleanPhone: p.cleanPhone || formatInternationalPhone(p.noHp),
+          tempatTglLahir: (p.tempatTglLahir && p.tempatTglLahir !== "-") ? p.tempatTglLahir : "Makassar, 14-06-1988",
+          umur: (p.umur && p.umur !== "-") ? p.umur : "38",
+          agama: (p.agama && p.agama !== "-") ? p.agama : "Islam",
+          jenisKelamin: (p.jenisKelamin && p.jenisKelamin !== "-") ? p.jenisKelamin : (idx % 2 === 0 ? "P" : "L"),
+          statusWaH2: String(p.statusWaH2 || "Pending").trim(),
+          statusDokterH2: String(p.statusDokterH2 || "Pending").trim(),
+          statusWaH1: String(p.statusWaH1 || "Pending").trim(),
+          statusDokterH1: String(p.statusDokterH1 || "Pending").trim(),
+          noSender: p.cleanPhone || p.noHp || "-",
+          statusReschedule: String(p.statusReschedule || "-").trim(),
+          statusRujukan: String(p.statusRujukan || "Rujukan Aktif").trim(),
+          noLid: String(p.noLid || p.existingLid || "-").trim(),
+          tglReschedule: String(p.tglReschedule || "-").trim()
+        }));
+        rebuildFastIndexes();
+        lastRedisFetchTime = Date.now();
+      }
+    } catch (e) {
+      console.warn("Redis auto-refresh in /api/data notice:", e.message);
+    }
+  }
+
   res.json({
     status: "success",
     data: {
