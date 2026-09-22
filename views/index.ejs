@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title><%= title %></title>
+  <title>
+    <%= title %>
+  </title>
   <link rel="icon" type="image/png" href="/img/axalogo.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
 
   <!-- 1. TOP HEADER & MENUBAR (GLASSMORPHISM) -->
@@ -25,6 +29,9 @@
           <span class="menu-item" onclick="toggleFullscreen()">Tampilan</span>
           <span class="menu-item" onclick="openAddModal()">Sisipkan</span>
           <span class="menu-item" onclick="switchTab('DATA_PASIEN')">Data</span>
+          <span class="menu-item" onclick="triggerRestore408Modal()" style="color: #0284c7; font-weight: 700;" title="Pulihkan 408 Data Pasien Asli ke Database Redis">
+            <i class="fas fa-database"></i> Restore 408
+          </span>
           <a href="/admin" class="menu-item" style="color: #10b981; font-weight: 700;">
             <i class="fas fa-chart-pie"></i> Admin Analytics
           </a>
@@ -38,7 +45,8 @@
     <div class="header-actions">
       <!-- Theme Switcher Dropdown (Default Light) -->
       <div class="theme-selector-wrap">
-        <select class="theme-dropdown-select" id="theme-select" onchange="changeTheme(this.value)" title="Ganti Tema Tampilan">
+        <select class="theme-dropdown-select" id="theme-select" onchange="changeTheme(this.value)"
+          title="Ganti Tema Tampilan">
           <option value="light" selected>☀️ Terang (Default)</option>
           <option value="blue-cyan">🌊 Blue Cyan Soft</option>
           <option value="dark">🌙 Dark Glass</option>
@@ -59,8 +67,15 @@
       </div>
 
       <!-- Sync Button -->
-      <button class="btn btn-secondary btn-sm" id="btn-sync-pull" onclick="syncWithGAS()" title="Tarik data terbaru dari Google Spreadsheet">
+      <button class="btn btn-secondary btn-sm" id="btn-sync-pull" onclick="syncWithGAS()"
+        title="Tarik data terbaru dari Google Spreadsheet">
         <i class="fas fa-sync-alt"></i> <span class="d-none-mobile">Tarik GAS</span>
+      </button>
+
+      <!-- Push to GAS Button -->
+      <button class="btn btn-success btn-sm" id="btn-sync-push" onclick="pushToGAS()"
+        title="Kirim data pasien dari Web Portal ke Google Spreadsheet (GAS)">
+        <i class="fas fa-cloud-upload-alt"></i> <span class="d-none-mobile">Kirim ke GAS</span>
       </button>
 
       <!-- Add Record Button -->
@@ -72,10 +87,11 @@
 
   <!-- GOOGLE SHEETS PRECISION FORMATTING TOOLBAR (GAMBAR 1) -->
   <div class="sheets-format-toolbar" id="sheets-formatting-toolbar">
-    
+
     <!-- 1. Search menus -->
     <div class="tb-group">
-      <button class="tb-search-menu-btn" onclick="document.getElementById('global-search').focus()" title="Telusuri menu (Alt+/)">
+      <button class="tb-search-menu-btn" onclick="document.getElementById('global-search').focus()"
+        title="Telusuri menu (Alt+/)">
         <i class="fas fa-search"></i>
         <span>Telusuri</span>
       </button>
@@ -125,10 +141,12 @@
         <i class="fas fa-percent"></i>
       </button>
       <button class="tb-btn" onclick="applyCellFormat('dec-decrease')" title="Kurangi angka desimal (.0)">
-        <span style="font-size: 11px; font-weight:700;">.0<i class="fas fa-arrow-left" style="font-size:8px;"></i></span>
+        <span style="font-size: 11px; font-weight:700;">.0<i class="fas fa-arrow-left"
+            style="font-size:8px;"></i></span>
       </button>
       <button class="tb-btn" onclick="applyCellFormat('dec-increase')" title="Tambah angka desimal (.00)">
-        <span style="font-size: 11px; font-weight:700;"><i class="fas fa-arrow-right" style="font-size:8px;"></i>.00</span>
+        <span style="font-size: 11px; font-weight:700;"><i class="fas fa-arrow-right"
+            style="font-size:8px;"></i>.00</span>
       </button>
       <button class="tb-btn" onclick="applyCellFormat('number')" title="Format angka lainnya (123)">
         <span style="font-size: 10px; font-weight:700; font-family:var(--font-mono);">123</span>
@@ -139,7 +157,8 @@
 
     <!-- 5. Font Family & Size -->
     <div class="tb-group">
-      <select class="tb-select tb-select-font" id="tb-font-family" onchange="applyCellFontFamily(this.value)" title="Keluarga Font">
+      <select class="tb-select tb-select-font" id="tb-font-family" onchange="applyCellFontFamily(this.value)"
+        title="Keluarga Font">
         <option value="'Plus Jakarta Sans', sans-serif" selected>Jakarta Sans</option>
         <option value="Arial, sans-serif">Arial</option>
         <option value="'Roboto', sans-serif">Roboto</option>
@@ -152,7 +171,8 @@
         <button class="tb-btn" onclick="stepFontSize(-1)" title="Perkecil ukuran font">
           <i class="fas fa-minus"></i>
         </button>
-        <input type="text" class="tb-font-size-input" id="tb-font-size" value="12" onchange="applyCellFontSize(this.value)">
+        <input type="text" class="tb-font-size-input" id="tb-font-size" value="12"
+          onchange="applyCellFontSize(this.value)">
         <button class="tb-btn" onclick="stepFontSize(1)" title="Perbesar ukuran font">
           <i class="fas fa-plus"></i>
         </button>
@@ -169,22 +189,25 @@
       <button class="tb-btn" id="tb-btn-italic" onclick="toggleCellItalic()" title="Miring / Italic (Ctrl+I)">
         <i class="fas fa-italic"></i>
       </button>
-      <button class="tb-btn" id="tb-btn-strike" onclick="toggleCellStrike()" title="Coret / Strikethrough (Alt+Shift+5)">
+      <button class="tb-btn" id="tb-btn-strike" onclick="toggleCellStrike()"
+        title="Coret / Strikethrough (Alt+Shift+5)">
         <i class="fas fa-strikethrough"></i>
       </button>
-      
+
       <!-- Text Color Button with Color Bar -->
       <div class="tb-btn tb-color-btn" title="Warna teks">
         <span style="font-weight:800; font-size:12px; line-height:1;">A</span>
         <div class="tb-color-bar" id="tb-text-color-bar"></div>
-        <input type="color" class="tb-color-input-hidden" id="tb-text-color-picker" value="#ef4444" onchange="applyCellTextColor(this.value)">
+        <input type="color" class="tb-color-input-hidden" id="tb-text-color-picker" value="#ef4444"
+          onchange="applyCellTextColor(this.value)">
       </div>
 
       <!-- Fill Color Button (Bucket) with Color Bar -->
       <div class="tb-btn tb-color-btn" title="Warna isi / Fill color">
         <i class="fas fa-fill-drip" style="font-size:11px;"></i>
         <div class="tb-color-bar tb-fill-bar" id="tb-fill-color-bar"></div>
-        <input type="color" class="tb-color-input-hidden" id="tb-fill-color-picker" value="#fef08a" onchange="applyCellFillColor(this.value)">
+        <input type="color" class="tb-color-input-hidden" id="tb-fill-color-picker" value="#fef08a"
+          onchange="applyCellFillColor(this.value)">
       </div>
     </div>
 
@@ -252,7 +275,8 @@
     <div class="cell-name-box" id="cell-address" title="Koordinat Sel Terpilih">A1</div>
     <div class="formula-symbol" title="Formula & Nilai Sel">fx</div>
     <div class="formula-input-wrapper">
-      <input type="text" id="formula-input" placeholder="Pilih sel pada spreadsheet untuk melihat atau mengedit nilai...">
+      <input type="text" id="formula-input"
+        placeholder="Pilih sel pada spreadsheet untuk melihat atau mengedit nilai...">
     </div>
   </div>
 
@@ -261,10 +285,12 @@
     <div class="toolbar-left">
       <!-- View Mode Toggle: Grid vs Mobile Cards -->
       <div class="view-mode-toggle">
-        <button class="view-toggle-btn active" id="btn-view-grid" onclick="setViewMode('grid')" title="Tampilan Spreadsheet Grid">
+        <button class="view-toggle-btn active" id="btn-view-grid" onclick="setViewMode('grid')"
+          title="Tampilan Spreadsheet Grid">
           <i class="fas fa-table"></i> <span>Grid</span>
         </button>
-        <button class="view-toggle-btn" id="btn-view-cards" onclick="setViewMode('cards')" title="Tampilan Kartu Medis Mobile">
+        <button class="view-toggle-btn" id="btn-view-cards" onclick="setViewMode('cards')"
+          title="Tampilan Kartu Medis Mobile">
           <i class="fas fa-id-card"></i> <span>Kartu</span>
         </button>
       </div>
@@ -280,6 +306,19 @@
         <button class="filter-btn" data-filter="h1" onclick="applyFilter('h1')">
           <i class="fas fa-calendar-check"></i> H-1
         </button>
+        <!-- Custom H- Filter Pill (Kapsul Terpadu Paripurna) -->
+        <div class="custom-h-pill" id="custom-h-container" title="Filter Hari Kontrol (contoh: 0 untuk Hari H, 3 untuk H-3, atau 0, 3 untuk multi-hari)">
+          <button type="button" class="custom-h-btn" data-filter="custom_h" onclick="focusCustomHInput(event)" title="Klik untuk fokus input H-">
+            <i class="fas fa-calendar-alt"></i> <span>H-</span>
+          </button>
+          <div class="custom-h-divider"></div>
+          <input type="text" id="custom-h-input" class="custom-h-input" placeholder="0, 3..." inputmode="numeric"
+            autocomplete="off" spellcheck="false"
+            title="Ketik angka selisih hari kontrol (misal 0 untuk Hari H, 3 untuk H-3, atau multi hari: 0, 3, 7)"
+            oninput="handleCustomHChange(this.value)" onkeydown="handleCustomHKey(event)">
+          <button type="button" class="custom-h-clear" id="custom-h-clear-btn" onclick="clearCustomHFilter(event)"
+            title="Reset Filter H-">&times;</button>
+        </div>
         <button class="filter-btn" data-filter="reschedule" onclick="applyFilter('reschedule')">
           <i class="fas fa-history"></i> Reschedule
         </button>
@@ -296,12 +335,14 @@
       <!-- Global Search -->
       <div class="search-box">
         <i class="fas fa-search search-icon"></i>
-        <input type="text" id="global-search" placeholder="Cari Nama, No RM, WA, LID..." oninput="handleSearch(this.value)">
+        <input type="text" id="global-search" placeholder="Cari Nama, No RM, WA, LID..."
+          oninput="handleSearch(this.value)">
         <button id="search-clear" onclick="clearSearch()" style="display:none;"><i class="fas fa-times"></i></button>
       </div>
 
       <!-- Export CSV -->
-      <button class="btn btn-secondary btn-sm" onclick="exportActiveSheetToCSV()" title="Ekspor data sheet aktif ke file CSV">
+      <button class="btn btn-secondary btn-sm" onclick="exportActiveSheetToCSV()"
+        title="Ekspor data sheet aktif ke file CSV">
         <i class="fas fa-file-csv"></i> <span>CSV</span>
       </button>
 
@@ -314,35 +355,54 @@
 
   <!-- 4. MAIN SPREADSHEET WORKSPACE -->
   <main class="spreadsheet-workspace" id="spreadsheet-container">
-    
+
     <!-- SHEET 1: DATA_PASIEN (19 Columns A to S) -->
     <div class="sheet-view-wrapper active" id="view-DATA_PASIEN">
-      
+
       <!-- View Option A: Classic Google Sheets Table Grid -->
       <div class="grid-table-container" id="grid-container-DATA_PASIEN">
         <table class="spreadsheet-table" id="table-DATA_PASIEN">
           <thead>
             <tr>
               <th class="col-row-number">#</th>
-              <th class="col-header" data-col="A">A<span class="sub-col">Timestamp</span></th>
-              <th class="col-header" data-col="B">B<span class="sub-col">No RM</span></th>
-              <th class="col-header" data-col="C">C<span class="sub-col">Nama Pasien</span></th>
-              <th class="col-header" data-col="D">D<span class="sub-col">Tanggal Masuk</span></th>
-              <th class="col-header" data-col="E">E<span class="sub-col">Tanggal Kontrol</span></th>
-              <th class="col-header" data-col="F">F<span class="sub-col">No WA</span></th>
-              <th class="col-header" data-col="G">G<span class="sub-col">Tempat / Tgl Lahir</span></th>
-              <th class="col-header" data-col="H">H<span class="sub-col">Umur</span></th>
-              <th class="col-header" data-col="I">I<span class="sub-col">Agama</span></th>
-              <th class="col-header" data-col="J">J<span class="sub-col">Jenis Kelamin</span></th>
-              <th class="col-header" data-col="K">K<span class="sub-col">Status Kirim WA H-2</span></th>
-              <th class="col-header" data-col="L">L<span class="sub-col">Status Notif Dokter H-2</span></th>
-              <th class="col-header" data-col="M">M<span class="sub-col">Status Kirim WA H-1</span></th>
-              <th class="col-header" data-col="N">N<span class="sub-col">Status Notif Dokter H-1</span></th>
-              <th class="col-header" data-col="O">O<span class="sub-col">No Sender</span></th>
-              <th class="col-header" data-col="P">P<span class="sub-col">Status Reschedule</span></th>
-              <th class="col-header" data-col="Q">Q<span class="sub-col">Status Rujukan</span></th>
-              <th class="col-header" data-col="R">R<span class="sub-col">No LID</span></th>
-              <th class="col-header" data-col="S">S<span class="sub-col">Tanggal Reschedule</span></th>
+              <th class="col-header" data-col="A" onclick="selectColumn(this, 'A', 1)"
+                title="Klik untuk memblok/memilih Kolom A">A<span class="sub-col">Timestamp</span></th>
+              <th class="col-header" data-col="B" onclick="selectColumn(this, 'B', 2)"
+                title="Klik untuk memblok/memilih Kolom B">B<span class="sub-col">No RM</span></th>
+              <th class="col-header" data-col="C" onclick="selectColumn(this, 'C', 3)"
+                title="Klik untuk memblok/memilih Kolom C">C<span class="sub-col">Nama Pasien</span></th>
+              <th class="col-header" data-col="D" onclick="selectColumn(this, 'D', 4)"
+                title="Klik untuk memblok/memilih Kolom D">D<span class="sub-col">Tanggal Masuk</span></th>
+              <th class="col-header" data-col="E" onclick="selectColumn(this, 'E', 5)"
+                title="Klik untuk memblok/memilih Kolom E">E<span class="sub-col">Tanggal Kontrol</span></th>
+              <th class="col-header" data-col="F" onclick="selectColumn(this, 'F', 6)"
+                title="Klik untuk memblok/memilih Kolom F">F<span class="sub-col">No WA</span></th>
+              <th class="col-header" data-col="G" onclick="selectColumn(this, 'G', 7)"
+                title="Klik untuk memblok/memilih Kolom G">G<span class="sub-col">Tempat / Tgl Lahir</span></th>
+              <th class="col-header" data-col="H" onclick="selectColumn(this, 'H', 8)"
+                title="Klik untuk memblok/memilih Kolom H">H<span class="sub-col">Umur</span></th>
+              <th class="col-header" data-col="I" onclick="selectColumn(this, 'I', 9)"
+                title="Klik untuk memblok/memilih Kolom I">I<span class="sub-col">Agama</span></th>
+              <th class="col-header" data-col="J" onclick="selectColumn(this, 'J', 10)"
+                title="Klik untuk memblok/memilih Kolom J">J<span class="sub-col">Jenis Kelamin</span></th>
+              <th class="col-header" data-col="K" onclick="selectColumn(this, 'K', 11)"
+                title="Klik untuk memblok/memilih Kolom K">K<span class="sub-col">Status Kirim WA H-2</span></th>
+              <th class="col-header" data-col="L" onclick="selectColumn(this, 'L', 12)"
+                title="Klik untuk memblok/memilih Kolom L">L<span class="sub-col">Status Notif Dokter H-2</span></th>
+              <th class="col-header" data-col="M" onclick="selectColumn(this, 'M', 13)"
+                title="Klik untuk memblok/memilih Kolom M">M<span class="sub-col">Status Kirim WA H-1</span></th>
+              <th class="col-header" data-col="N" onclick="selectColumn(this, 'N', 14)"
+                title="Klik untuk memblok/memilih Kolom N">N<span class="sub-col">Status Notif Dokter H-1</span></th>
+              <th class="col-header" data-col="O" onclick="selectColumn(this, 'O', 15)"
+                title="Klik untuk memblok/memilih Kolom O">O<span class="sub-col">No Sender</span></th>
+              <th class="col-header" data-col="P" onclick="selectColumn(this, 'P', 16)"
+                title="Klik untuk memblok/memilih Kolom P">P<span class="sub-col">Status Reschedule</span></th>
+              <th class="col-header" data-col="Q" onclick="selectColumn(this, 'Q', 17)"
+                title="Klik untuk memblok/memilih Kolom Q">Q<span class="sub-col">Status Rujukan</span></th>
+              <th class="col-header" data-col="R" onclick="selectColumn(this, 'R', 18)"
+                title="Klik untuk memblok/memilih Kolom R">R<span class="sub-col">No LID</span></th>
+              <th class="col-header" data-col="S" onclick="selectColumn(this, 'S', 19)"
+                title="Klik untuk memblok/memilih Kolom S">S<span class="sub-col">Tanggal Reschedule</span></th>
               <th class="col-action-header">Aksi</th>
             </tr>
           </thead>
@@ -362,13 +422,15 @@
             <i class="fas fa-plus"></i> Tambah 100 Baris
           </button>
           <span>atau tambahkan</span>
-          <input type="number" class="sheet-append-rows-input" id="append-rows-count-DATA_PASIEN" value="1000" min="1" max="1000">
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-DATA_PASIEN" value="1000" min="1"
+            max="1000">
           <span>baris lagi</span>
           <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('DATA_PASIEN')">
             <i class="fas fa-layer-group"></i> Tambah Baris
           </button>
           <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
-            <i class="fas fa-info-circle"></i> Tips: Anda dapat langsung <strong>Cmd+V / Ctrl+V</strong> untuk paste data dari Google Sheets / Excel kapan saja!
+            <i class="fas fa-info-circle"></i> Tips: Anda dapat langsung <strong>Cmd+V / Ctrl+V</strong> untuk paste
+            data dari Google Sheets / Excel kapan saja!
           </span>
         </div>
       </div>
@@ -389,9 +451,12 @@
           <thead>
             <tr>
               <th class="col-row-number">#</th>
-              <th class="col-header" data-col="A" style="width: 250px;">A<span class="sub-col">PARAMETER</span></th>
-              <th class="col-header" data-col="B" style="width: 320px;">B<span class="sub-col">VALUE</span></th>
-              <th class="col-header" data-col="C">C<span class="sub-col">KETERANGAN</span></th>
+              <th class="col-header" data-col="A" style="width: 250px;" onclick="selectColumn(this, 'A', 1)"
+                title="Klik untuk memblok Kolom A">A<span class="sub-col">PARAMETER</span></th>
+              <th class="col-header" data-col="B" style="width: 320px;" onclick="selectColumn(this, 'B', 2)"
+                title="Klik untuk memblok Kolom B">B<span class="sub-col">VALUE</span></th>
+              <th class="col-header" data-col="C" onclick="selectColumn(this, 'C', 3)"
+                title="Klik untuk memblok Kolom C">C<span class="sub-col">KETERANGAN</span></th>
               <th class="col-action-header">Aksi</th>
             </tr>
           </thead>
@@ -405,13 +470,15 @@
             <i class="fas fa-plus"></i> Tambah 10 Baris
           </button>
           <span>atau tambahkan</span>
-          <input type="number" class="sheet-append-rows-input" id="append-rows-count-SETTING" value="50" min="1" max="500">
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-SETTING" value="50" min="1"
+            max="500">
           <span>baris</span>
           <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('SETTING')">
             <i class="fas fa-layer-group"></i> Tambah
           </button>
           <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
-            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste pengaturan secara instan.
+            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste pengaturan secara
+            instan.
           </span>
         </div>
       </div>
@@ -424,10 +491,14 @@
           <thead>
             <tr>
               <th class="col-row-number">#</th>
-              <th class="col-header" data-col="A" style="width: 220px;">A<span class="sub-col">KODE_TEMPLATE</span></th>
-              <th class="col-header" data-col="B" style="width: 240px;">B<span class="sub-col">TARGET_PENERIMA</span></th>
-              <th class="col-header" data-col="C" style="width: 480px;">C<span class="sub-col">TEMPLATE_PESAN</span></th>
-              <th class="col-header" data-col="D" style="width: 200px;">D<span class="sub-col">PARAMETER_TERSEDIA</span></th>
+              <th class="col-header" data-col="A" style="width: 220px;" onclick="selectColumn(this, 'A', 1)"
+                title="Klik untuk memblok Kolom A">A<span class="sub-col">KODE_TEMPLATE</span></th>
+              <th class="col-header" data-col="B" style="width: 240px;" onclick="selectColumn(this, 'B', 2)"
+                title="Klik untuk memblok Kolom B">B<span class="sub-col">TARGET_PENERIMA</span></th>
+              <th class="col-header" data-col="C" style="width: 480px;" onclick="selectColumn(this, 'C', 3)"
+                title="Klik untuk memblok Kolom C">C<span class="sub-col">TEMPLATE_PESAN</span></th>
+              <th class="col-header" data-col="D" style="width: 200px;" onclick="selectColumn(this, 'D', 4)"
+                title="Klik untuk memblok Kolom D">D<span class="sub-col">PARAMETER_TERSEDIA</span></th>
               <th class="col-action-header">Aksi</th>
             </tr>
           </thead>
@@ -441,13 +512,15 @@
             <i class="fas fa-plus"></i> Tambah 10 Baris
           </button>
           <span>atau tambahkan</span>
-          <input type="number" class="sheet-append-rows-input" id="append-rows-count-CUSTOM_FORMAT" value="50" min="1" max="500">
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-CUSTOM_FORMAT" value="50" min="1"
+            max="500">
           <span>baris</span>
           <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('CUSTOM_FORMAT')">
             <i class="fas fa-layer-group"></i> Tambah
           </button>
           <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
-            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste format blast WA secara instan.
+            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste format blast WA
+            secara instan.
           </span>
         </div>
       </div>
@@ -460,11 +533,16 @@
           <thead>
             <tr>
               <th class="col-row-number">#</th>
-              <th class="col-header" data-col="A" style="width: 220px;">A<span class="sub-col">KODE_PROMPT</span></th>
-              <th class="col-header" data-col="B" style="width: 260px;">B<span class="sub-col">JUDUL</span></th>
-              <th class="col-header" data-col="C" style="width: 480px;">C<span class="sub-col">SYSTEM_PROMPT</span></th>
-              <th class="col-header" data-col="D" style="width: 120px;">D<span class="sub-col">IS_ACTIVE</span></th>
-              <th class="col-header" data-col="E">E<span class="sub-col">KETERANGAN</span></th>
+              <th class="col-header" data-col="A" style="width: 220px;" onclick="selectColumn(this, 'A', 1)"
+                title="Klik untuk memblok Kolom A">A<span class="sub-col">KODE_PROMPT</span></th>
+              <th class="col-header" data-col="B" style="width: 260px;" onclick="selectColumn(this, 'B', 2)"
+                title="Klik untuk memblok Kolom B">B<span class="sub-col">JUDUL</span></th>
+              <th class="col-header" data-col="C" style="width: 480px;" onclick="selectColumn(this, 'C', 3)"
+                title="Klik untuk memblok Kolom C">C<span class="sub-col">SYSTEM_PROMPT</span></th>
+              <th class="col-header" data-col="D" style="width: 120px;" onclick="selectColumn(this, 'D', 4)"
+                title="Klik untuk memblok Kolom D">D<span class="sub-col">IS_ACTIVE</span></th>
+              <th class="col-header" data-col="E" onclick="selectColumn(this, 'E', 5)"
+                title="Klik untuk memblok Kolom E">E<span class="sub-col">KETERANGAN</span></th>
               <th class="col-action-header">Aksi</th>
             </tr>
           </thead>
@@ -478,13 +556,15 @@
             <i class="fas fa-plus"></i> Tambah 5 Baris
           </button>
           <span>atau tambahkan</span>
-          <input type="number" class="sheet-append-rows-input" id="append-rows-count-CUSTOM_PROMPT" value="20" min="1" max="100">
+          <input type="number" class="sheet-append-rows-input" id="append-rows-count-CUSTOM_PROMPT" value="20" min="1"
+            max="100">
           <span>baris</span>
           <button class="btn btn-primary btn-sm" onclick="appendRowsCustom('CUSTOM_PROMPT')">
             <i class="fas fa-layer-group"></i> Tambah
           </button>
           <span style="margin-left: auto; font-size: 11px; color: var(--text-dim);">
-            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste custom prompt AI secara instan.
+            <i class="fas fa-info-circle"></i> Tips: Tekan <strong>Cmd+V / Ctrl+V</strong> untuk paste custom prompt AI
+            secara instan.
           </span>
         </div>
       </div>
@@ -572,7 +652,7 @@
       <form id="form-patient" onsubmit="savePatient(event)">
         <input type="hidden" id="p-row-number">
         <div class="modal-body modal-grid-3">
-          
+
           <!-- Bagian 1: Data Identitas & Medis -->
           <div class="form-section-title">1. Data Rekam Medis Pasien</div>
           <div class="form-group">
@@ -707,7 +787,8 @@
         <div class="modal-body">
           <div class="form-group">
             <label>Parameter</label>
-            <input type="text" id="s-param" readonly style="background: var(--bg-surface-elevated); color: var(--accent);">
+            <input type="text" id="s-param" readonly
+              style="background: var(--bg-surface-elevated); color: var(--accent);">
           </div>
           <div class="form-group">
             <label>Value / Nilai</label>
@@ -737,7 +818,8 @@
         <div class="modal-body">
           <div class="form-group">
             <label>Kode Template</label>
-            <input type="text" id="t-code" readonly style="background: var(--bg-surface-elevated); color: var(--accent);">
+            <input type="text" id="t-code" readonly
+              style="background: var(--bg-surface-elevated); color: var(--accent);">
           </div>
           <div class="form-group">
             <label>Target Penerima</label>
@@ -783,7 +865,8 @@
           <div class="form-row-2">
             <div class="form-group">
               <label>Kode Prompt</label>
-              <input type="text" id="pr-code" readonly style="background: var(--bg-surface-elevated); color: var(--accent);">
+              <input type="text" id="pr-code" readonly
+                style="background: var(--bg-surface-elevated); color: var(--accent);">
             </div>
             <div class="form-group">
               <label>Status Aktif</label>
@@ -799,7 +882,8 @@
           </div>
           <div class="form-group">
             <label>System Prompt Lengkap (Birokratis Formal & Pakar Seluruh Spesialisasi Kedokteran Gigi)</label>
-            <textarea id="pr-text" rows="14" style="font-family: var(--font-mono); font-size: 12px; line-height: 1.5;" required></textarea>
+            <textarea id="pr-text" rows="14" style="font-family: var(--font-mono); font-size: 12px; line-height: 1.5;"
+              required></textarea>
           </div>
           <div class="form-group">
             <label>Keterangan</label>
@@ -828,6 +912,14 @@
       templates: [],
       prompts: [],
       activeFilter: "all",
+      customHDays: null,
+      customHDaysList: [],
+      isAllSelected: false,
+      selectedColumn: null,
+      selectionRange: null,
+      isSelectingRange: false,
+      rangeAnchorCell: null,
+      activeInlineEditor: null,
       searchQuery: "",
       selectedCell: { coord: "A1", row: 1, col: "A", value: "" },
       lastSync: null
@@ -926,6 +1018,7 @@
 
     // Fetch All Data from Server
     async function loadAllData(showNotification = false) {
+      cancelActiveInlineEdit();
       try {
         const res = await fetch("/api/data");
         const json = await res.json();
@@ -957,18 +1050,34 @@
       }
     }
 
+    function getDateAfterDays(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + Number(days));
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
     function getFilteredPatients() {
       let filtered = [...state.patients];
 
       // Quick Filters
       if (state.activeFilter === "h2") {
-        const now = new Date();
-        const h2Date = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+        const h2Date = getDateAfterDays(2);
         filtered = filtered.filter(p => p.tglKontrol === h2Date || p.tglReschedule === h2Date);
       } else if (state.activeFilter === "h1") {
-        const now = new Date();
-        const h1Date = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
+        const h1Date = getDateAfterDays(1);
         filtered = filtered.filter(p => p.tglKontrol === h1Date || p.tglReschedule === h1Date);
+      } else if (state.activeFilter === "custom_h") {
+        const daysList = (state.customHDaysList && state.customHDaysList.length > 0)
+          ? state.customHDaysList
+          : (state.customHDays !== null && state.customHDays !== undefined && state.customHDays !== "" ? [parseInt(state.customHDays, 10)] : []);
+
+        if (daysList.length > 0) {
+          const targetDates = new Set(daysList.map(d => getDateAfterDays(d)));
+          filtered = filtered.filter(p => targetDates.has(p.tglKontrol) || targetDates.has(p.tglReschedule));
+        }
       } else if (state.activeFilter === "reschedule") {
         filtered = filtered.filter(p => (p.statusReschedule && p.statusReschedule !== "-") || (p.tglReschedule && p.tglReschedule !== "-"));
       } else if (state.activeFilter === "rujukan_aktif") {
@@ -980,7 +1089,7 @@
       // Search Query Filter
       if (state.searchQuery) {
         const q = state.searchQuery.toLowerCase();
-        filtered = filtered.filter(p => 
+        filtered = filtered.filter(p =>
           (p.namaPasien && p.namaPasien.toLowerCase().includes(q)) ||
           (p.noRm && p.noRm.toLowerCase().includes(q)) ||
           (p.cleanPhone && p.cleanPhone.includes(q)) ||
@@ -1011,7 +1120,7 @@
         const hasResched = p.tglReschedule && p.tglReschedule !== "-";
 
         html += `
-          <tr data-row="${p.rowNumber}" draggable="true" data-sheet="DATA_PASIEN" data-row-idx="${idx}">
+          <tr data-row="${p.rowNumber}" data-db-row="${p.rowNumber}" data-filtered-idx="${idx}" draggable="true" data-sheet="DATA_PASIEN" data-row-idx="${idx}">
             <td class="row-num-cell"><span class="row-drag-handle" title="Tahan & geser untuk memindahkan baris (Drag to reorder)"><i class="fas fa-grip-vertical"></i> ${rowNum}</span></td>
             <td class="cell" data-coord="A${rowNum}" onclick="selectCell(this, 'A${rowNum}')" ondblclick="startInlineEdit(this, 'timestamp', ${p.rowNumber}, 'DATA_PASIEN')">${p.timestamp || "-"}</td>
             <td class="cell font-mono" data-coord="B${rowNum}" onclick="selectCell(this, 'B${rowNum}')" ondblclick="startInlineEdit(this, 'noRm', ${p.rowNumber}, 'DATA_PASIEN')"><strong>${p.noRm || "-"}</strong></td>
@@ -1245,13 +1354,187 @@
         .replace(/'/g, "&#039;");
     }
 
+    // Helper: Convert column letter ('A', 'B', ...) to 1-indexed number
+    function colLetterToNumber(letter) {
+      if (!letter) return 1;
+      let colNum = 0;
+      const str = String(letter).toUpperCase();
+      for (let i = 0; i < str.length; i++) {
+        colNum = colNum * 26 + (str.charCodeAt(i) - 64);
+      }
+      return Math.max(1, colNum);
+    }
+
+    // Helper: Clear all selection highlights across the table
+    function clearAllSelection() {
+      state.isAllSelected = false;
+      state.selectedColumn = null;
+      state.selectionRange = null;
+      state.isSelectingRange = false;
+      document.querySelectorAll(".col-header.col-header-selected").forEach(th => th.classList.remove("col-header-selected"));
+      document.querySelectorAll(".row-selected-range").forEach(tr => tr.classList.remove("row-selected-range"));
+      document.querySelectorAll(".cell.col-selected-range, .cell.cell-selected-range").forEach(td => {
+        td.classList.remove("col-selected-range", "cell-selected-range");
+      });
+    }
+
+    // Column Header Selection (Google Sheets Style)
+    function selectColumn(thElement, colLetter, colIndex) {
+      clearAllSelection();
+
+      if (thElement) {
+        thElement.classList.add("col-header-selected");
+      } else {
+        const th = document.querySelector(`#table-${state.activeSheet} th.col-header[data-col="${colLetter}"]`);
+        if (th) th.classList.add("col-header-selected");
+      }
+
+      state.selectedColumn = colLetter;
+      const numCol = colIndex || colLetterToNumber(colLetter);
+
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      if (!tbody) return;
+
+      const visibleRows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+      if (visibleRows.length === 0) return;
+
+      let firstVisibleCoord = `${colLetter}2`;
+      visibleRows.forEach((tr, rIdx) => {
+        const cells = tr.querySelectorAll(".cell");
+        const cellIndex = numCol - 1;
+        if (cells[cellIndex]) {
+          cells[cellIndex].classList.add("col-selected-range");
+          if (rIdx === 0) {
+            firstVisibleCoord = cells[cellIndex].getAttribute("data-coord") || `${colLetter}2`;
+          }
+        }
+      });
+
+      state.selectedCell = {
+        coord: firstVisibleCoord,
+        row: 2,
+        col: colLetter,
+        value: ""
+      };
+
+      state.selectionRange = {
+        startRIdx: 0,
+        endRIdx: visibleRows.length - 1,
+        startCol: numCol,
+        endCol: numCol,
+        isFullColumn: true,
+        rowCount: visibleRows.length,
+        colLetter: colLetter
+      };
+
+      const subColName = thElement ? (thElement.querySelector(".sub-col")?.textContent || colLetter) : colLetter;
+      const addrEl = document.getElementById("cell-address");
+      if (addrEl) addrEl.textContent = `Kolom ${colLetter}`;
+
+      const statCell = document.getElementById("stat-active-cell");
+      if (statCell) statCell.innerHTML = `Kolom: <strong>${colLetter} (${subColName})</strong> [${visibleRows.length} Baris]`;
+
+      showToast(`Kolom ${colLetter} (${subColName}) terpilih (${visibleRows.length} baris). Tekan Cmd+V untuk menempelkan data.`);
+    }
+
+    // Helper: Extract row index, col index, and coord from a cell element
+    function getCellIndices(cellEl) {
+      if (!cellEl) return null;
+      const tr = cellEl.closest("tr");
+      if (!tr) return null;
+      const tbody = tr.closest("tbody");
+      if (!tbody) return null;
+      const visibleRows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+      const rIdx = visibleRows.indexOf(tr);
+      const cells = Array.from(tr.querySelectorAll(".cell"));
+      const cIdx = cells.indexOf(cellEl);
+      const coord = cellEl.getAttribute("data-coord") || "A2";
+      return { rIdx, cIdx, coord, tr, cellEl };
+    }
+
+    // Helper: Update visual highlight for rectangular cell selection range
+    function updateRangeHighlight(anchor, target) {
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      if (!tbody) return;
+      const visibleRows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+
+      const minR = Math.min(anchor.rIdx, target.rIdx);
+      const maxR = Math.max(anchor.rIdx, target.rIdx);
+      const minC = Math.min(anchor.cIdx, target.cIdx);
+      const maxC = Math.max(anchor.cIdx, target.cIdx);
+
+      tbody.querySelectorAll(".cell.cell-selected-range, .cell.col-selected-range").forEach(c => {
+        c.classList.remove("cell-selected-range", "col-selected-range");
+      });
+
+      let selectedCount = 0;
+      for (let r = minR; r <= maxR; r++) {
+        if (visibleRows[r]) {
+          const cells = visibleRows[r].querySelectorAll(".cell");
+          for (let c = minC; c <= maxC; c++) {
+            if (cells[c]) {
+              cells[c].classList.add("cell-selected-range");
+              selectedCount++;
+            }
+          }
+        }
+      }
+
+      state.selectedColumn = null;
+      document.querySelectorAll(".col-header.col-header-selected").forEach(th => th.classList.remove("col-header-selected"));
+
+      state.selectionRange = {
+        startRIdx: minR,
+        endRIdx: maxR,
+        startCol: minC + 1,
+        endCol: maxC + 1,
+        isFullColumn: false,
+        rowCount: maxR - minR + 1,
+        colCount: maxC - minC + 1
+      };
+
+      if (visibleRows[minR]) {
+        const topLeftCell = visibleRows[minR].querySelectorAll(".cell")[minC];
+        if (topLeftCell) {
+          const coord = topLeftCell.getAttribute("data-coord");
+          if (coord) {
+            state.selectedCell.coord = coord;
+            const matchCol = coord.match(/^[A-Z]+/);
+            const matchRow = coord.match(/[0-9]+$/);
+            if (matchCol) state.selectedCell.col = matchCol[0];
+            if (matchRow) state.selectedCell.row = parseInt(matchRow[0]);
+          }
+        }
+      }
+
+      const statCell = document.getElementById("stat-active-cell");
+      if (statCell) statCell.innerHTML = `Rentang: <strong>${selectedCount} Sel</strong> (${maxR - minR + 1}B x ${maxC - minC + 1}K)`;
+    }
+
+    let isMouseDraggingRange = false;
+
     // Cell Selection & Formula Bar Two-Way Sync
     function selectCell(element, coord) {
+      if (isMouseDraggingRange) return;
+
+      clearAllSelection();
       document.querySelectorAll(".cell.cell-selected").forEach(c => c.classList.remove("cell-selected"));
       element.classList.add("cell-selected");
 
-      state.selectedCell.coord = coord;
-      state.selectedCell.value = element.textContent.trim();
+      const matchCol = coord.match(/^[A-Z]+/);
+      const matchRow = coord.match(/[0-9]+$/);
+      const colLetter = matchCol ? matchCol[0] : "A";
+      const rowNum = matchRow ? parseInt(matchRow[0]) : 2;
+
+      state.selectedCell = {
+        coord: coord,
+        row: rowNum,
+        col: colLetter,
+        value: element.textContent.trim()
+      };
+
+      const info = getCellIndices(element);
+      state.rangeAnchorCell = info;
 
       // If format painter is active, apply copied style
       if (clipboardStyle) {
@@ -1295,7 +1578,7 @@
 
       const fInputEl = document.getElementById("formula-input");
       if (fInputEl) {
-        fInputEl.addEventListener("keydown", function(e) {
+        fInputEl.addEventListener("keydown", function (e) {
           if (e.key === "Enter") {
             const val = this.value;
             const selected = document.querySelector(".cell.cell-selected");
@@ -1316,12 +1599,32 @@
         switchTab(targetTab);
       }
 
-      // Keyboard Delete / Backspace to Clear Cell Content (Google Sheets style)
+      // Keyboard Shortcuts (Cmd+A / Ctrl+A, Cmd+C, Delete/Backspace, Esc)
       window.addEventListener('keydown', (e) => {
         const activeTag = document.activeElement ? document.activeElement.tagName.toUpperCase() : '';
-        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || document.activeElement.isContentEditable) {
+        const isInput = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || (document.activeElement && document.activeElement.isContentEditable);
+        if (isInput) return;
+
+        // Cmd + A / Ctrl + A: Pilih Semua Baris Terlihat pada Sheet Aktif & Filter Aktif
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A')) {
+          e.preventDefault();
+          selectAllTableRows();
           return;
         }
+
+        // Cmd + C / Ctrl + C: Smart Clipboard Copy Engine (Google Sheets / Excel Style)
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C')) {
+          e.preventDefault();
+          copyActiveSelectionToClipboard();
+          return;
+        }
+
+        // Escape: Batalkan seleksi semua baris / kolom / range
+        if (e.key === 'Escape') {
+          clearAllSelection();
+        }
+
+        // Delete / Backspace to Clear Cell Content (Google Sheets style)
         if (e.key === 'Delete' || e.key === 'Backspace') {
           if (state.selectedCell && state.selectedCell.coord) {
             e.preventDefault();
@@ -1330,64 +1633,322 @@
         }
       });
 
+      // Mouse Drag & Shift-Click Range Selection Engine
+      document.addEventListener("mousedown", (e) => {
+        const cell = e.target.closest(".cell");
+        if (!cell) return;
+        const table = cell.closest(".spreadsheet-table");
+        if (!table) return;
+
+        const info = getCellIndices(cell);
+        if (!info) return;
+
+        if (e.shiftKey && state.rangeAnchorCell) {
+          e.preventDefault();
+          updateRangeHighlight(state.rangeAnchorCell, info);
+          return;
+        }
+
+        if (e.button === 0) {
+          state.isSelectingRange = true;
+          isMouseDraggingRange = false;
+          state.rangeAnchorCell = info;
+          document.body.classList.add("table-range-selecting");
+        }
+      });
+
+      document.addEventListener("mouseover", (e) => {
+        if (!state.isSelectingRange || !state.rangeAnchorCell) return;
+        const cell = e.target.closest(".cell");
+        if (!cell) return;
+        const info = getCellIndices(cell);
+        if (info && (info.rIdx !== state.rangeAnchorCell.rIdx || info.cIdx !== state.rangeAnchorCell.cIdx)) {
+          isMouseDraggingRange = true;
+          updateRangeHighlight(state.rangeAnchorCell, info);
+        }
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (state.isSelectingRange) {
+          state.isSelectingRange = false;
+          document.body.classList.remove("table-range-selecting");
+          setTimeout(() => { isMouseDraggingRange = false; }, 50);
+        }
+      });
+
       // Init Drag and Drop for Table Rows
       initRowDragAndDrop();
     });
+
+    // Selection Helpers for Cmd+A, Cmd+C, Cmd+V
+    function selectAllTableRows() {
+      clearAllSelection();
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      if (!tbody) return;
+      const rows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+      if (rows.length === 0) return;
+
+      state.isAllSelected = true;
+      rows.forEach(tr => tr.classList.add("row-selected-range"));
+
+      const firstCell = tbody.querySelector(".cell");
+      if (firstCell && (!state.selectedCell || !state.selectedCell.coord)) {
+        const coord = firstCell.getAttribute("data-coord") || "A2";
+        state.selectedCell = { coord: coord, row: 2, col: "A", value: firstCell.textContent.trim() };
+        const addr = document.getElementById("cell-address");
+        if (addr) addr.textContent = coord;
+      }
+
+      showToast(`${rows.length} baris terpilih (${state.activeFilter.toUpperCase()}). Tekan Cmd+C untuk salin atau Cmd+V untuk menempelkan data.`, "info");
+    }
+
+    function deselectAllTableRows() {
+      state.isAllSelected = false;
+      document.querySelectorAll(".row-selected-range").forEach(tr => tr.classList.remove("row-selected-range"));
+    }
+
+    function copyVisiblePatientsToClipboard() {
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      if (!tbody) return;
+      const rows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+      if (rows.length === 0) return;
+
+      const tsvRows = [];
+      rows.forEach(tr => {
+        const cells = Array.from(tr.querySelectorAll(".cell"));
+        if (cells.length > 0) {
+          const rowVals = cells.map(td => (td.textContent || "").trim().replace(/\t/g, " ").replace(/\r?\n/g, " "));
+          tsvRows.push(rowVals.join("\t"));
+        }
+      });
+
+      if (tsvRows.length > 0) {
+        const textToCopy = tsvRows.join("\n");
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          showToast(`Berhasil menyalin ${tsvRows.length} baris data ke Clipboard!`, "success");
+        }).catch(err => {
+          console.error("Gagal menyalin ke clipboard:", err);
+        });
+      }
+    }
+
+    // Smart Clipboard Copy Engine (Sel Tunggal, Kolom, Rentang, atau Semua Baris)
+    function copyActiveSelectionToClipboard() {
+      document.querySelectorAll(".cell-copied-outline").forEach(el => el.classList.remove("cell-copied-outline"));
+
+      // 1. Seluruh Baris Terpilih (Cmd + A)
+      if (state.isAllSelected) {
+        copyVisiblePatientsToClipboard();
+        return;
+      }
+
+      // 2. Seluruh Kolom Terpilih (Klik Header Kolom)
+      if (state.selectedColumn) {
+        const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+        if (!tbody) return;
+        const visibleRows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+        if (visibleRows.length === 0) return;
+
+        const colNum = colLetterToNumber(state.selectedColumn);
+        const colVals = [];
+        visibleRows.forEach(tr => {
+          const cells = tr.querySelectorAll(".cell");
+          const targetCell = cells[colNum - 1];
+          if (targetCell) {
+            targetCell.classList.add("cell-copied-outline");
+            colVals.push((targetCell.textContent || "").trim().replace(/\t/g, " ").replace(/\r?\n/g, " "));
+          }
+        });
+
+        if (colVals.length > 0) {
+          const text = colVals.join("\n");
+          navigator.clipboard.writeText(text).then(() => {
+            showToast(`Kolom ${state.selectedColumn} disalin (${colVals.length} baris) ke Clipboard!`, "success");
+          }).catch(err => console.error("Gagal menyalin kolom:", err));
+        }
+        return;
+      }
+
+      // 3. Rentang Multi-Sel Terpilih (Mouse Drag / Shift-Click)
+      if (state.selectionRange && (state.selectionRange.rowCount > 1 || state.selectionRange.colCount > 1)) {
+        const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+        if (!tbody) return;
+        const visibleRows = Array.from(tbody.querySelectorAll("tr:not(.empty-state)"));
+
+        const minR = state.selectionRange.startRIdx;
+        const maxR = state.selectionRange.endRIdx;
+        const minC = state.selectionRange.startCol - 1;
+        const maxC = state.selectionRange.endCol - 1;
+
+        const tsvLines = [];
+        let copiedCount = 0;
+
+        for (let r = minR; r <= maxR; r++) {
+          if (visibleRows[r]) {
+            const cells = visibleRows[r].querySelectorAll(".cell");
+            const rowVals = [];
+            for (let c = minC; c <= maxC; c++) {
+              if (cells[c]) {
+                cells[c].classList.add("cell-copied-outline");
+                rowVals.push((cells[c].textContent || "").trim().replace(/\t/g, " ").replace(/\r?\n/g, " "));
+                copiedCount++;
+              }
+            }
+            tsvLines.push(rowVals.join("\t"));
+          }
+        }
+
+        if (tsvLines.length > 0) {
+          const text = tsvLines.join("\n");
+          navigator.clipboard.writeText(text).then(() => {
+            showToast(`Rentang ${copiedCount} sel disalin ke Clipboard!`, "success");
+          }).catch(err => console.error("Gagal menyalin rentang:", err));
+        }
+        return;
+      }
+
+      // 4. Sel Tunggal Terpilih (Single Cell)
+      if (state.selectedCell && state.selectedCell.coord) {
+        const cellEl = document.querySelector(`.cell[data-coord="${state.selectedCell.coord}"]`);
+        const cellVal = cellEl ? (cellEl.textContent || "").trim() : (state.selectedCell.value || "");
+        if (cellEl) cellEl.classList.add("cell-copied-outline");
+
+        navigator.clipboard.writeText(cellVal).then(() => {
+          showToast(`Sel ${state.selectedCell.coord} disalin: "${cellVal}"`, "success");
+        }).catch(err => console.error("Gagal menyalin sel:", err));
+        return;
+      }
+
+      showToast("Pilih sel atau kolom terlebih dahulu untuk menyalin.", "info");
+    }
 
     // =========================================================================
     // REAL-TIME SPREADSHEET CLIPBOARD PASTE HANDLER (GOOGLE SHEETS / EXCEL)
     // =========================================================================
     async function handleGlobalSpreadsheetPaste(e) {
-      // Jika pengguna sedang mengetik di input modal form, biarkan paste default
+      // Jika pengguna sedang mengetik di input modal form atau input filter, biarkan paste default
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
       const activeId = document.activeElement ? document.activeElement.id : "";
       if (document.querySelector(".modal-overlay.active") && (activeTag === "input" || activeTag === "textarea" || activeTag === "select")) {
         return;
       }
-      if (activeTag === "input" && activeId === "global-search") {
+      if (activeTag === "input" && (activeId === "global-search" || activeId === "custom-h-input" || activeId === "formula-input")) {
         return;
       }
 
       const clipboardText = (e.clipboardData || window.clipboardData).getData("text/plain");
       if (!clipboardText || !clipboardText.trim()) return;
 
+      // Jika paste dilakukan saat kursor berada di dalam kotak inline editor sel:
+      if (document.activeElement && document.activeElement.classList.contains("cell-inline-editor")) {
+        const pasteVal = clipboardText.trim();
+        if (pasteVal && !pasteVal.includes("\t") && !pasteVal.includes("\n")) {
+          e.preventDefault();
+          document.activeElement.value = pasteVal;
+          if (typeof document.activeElement._commit === "function") {
+            document.activeElement._commit(true);
+          }
+          return;
+        }
+      }
+
+      // Pastikan editor inline yang sedang terbuka dibatalkan agar blur tidak mengirim data lama
+      cancelActiveInlineEdit();
+
       const lines = clipboardText.trim().split(/\r\n|\r|\n/);
       if (lines.length === 0) return;
 
       e.preventDefault();
 
-      const matrix = lines.map(line => line.split("\t"));
+      let matrix = lines.map(line => line.split("\t"));
 
       let startRow = 2;
       let startCol = 1;
 
-      if (state.selectedCell && state.selectedCell.coord) {
+      // 1. Prioritaskan kolom yang sedang dipilih/diblok
+      if (state.selectedColumn) {
+        startCol = colLetterToNumber(state.selectedColumn);
+      } else if (state.selectionRange && state.selectionRange.startCol) {
+        startCol = state.selectionRange.startCol;
+      } else if (state.selectedCell && state.selectedCell.coord) {
         const matchCol = state.selectedCell.coord.match(/^[A-Z]+/);
-        const matchRow = state.selectedCell.coord.match(/[0-9]+$/);
-        if (matchCol && matchRow) {
-          const colLetters = matchCol[0];
-          let colNum = 0;
-          for (let i = 0; i < colLetters.length; i++) {
-            colNum = colNum * 26 + (colLetters.charCodeAt(i) - 64);
-          }
-          startCol = Math.max(1, colNum);
-          startRow = Math.max(2, parseInt(matchRow[0]) || 2);
+        if (matchCol) {
+          startCol = colLetterToNumber(matchCol[0]);
         }
       }
 
-      showToast(`Sedang menempelkan & menyinkronkan ${matrix.length} baris ke Upstash Redis...`, "info");
+      // 2. Tentukan baris awal dan kumpulkan target baris terfilter
+      const tbody = document.getElementById(`tbody-${state.activeSheet}`);
+      const visibleRows = tbody ? Array.from(tbody.querySelectorAll("tr:not(.empty-state)")) : [];
+
+      let targetRowNumbers = [];
+      let startFilteredIdx = 0;
+
+      if (state.selectedColumn) {
+        startFilteredIdx = 0;
+        startRow = 2;
+      } else if (state.selectionRange && state.selectionRange.startRIdx !== undefined) {
+        startFilteredIdx = state.selectionRange.startRIdx;
+      } else if (state.selectedCell && state.selectedCell.coord) {
+        const selectedCellEl = document.querySelector(`.cell[data-coord="${state.selectedCell.coord}"]`);
+        if (selectedCellEl) {
+          const parentTr = selectedCellEl.closest("tr");
+          if (parentTr) {
+            startFilteredIdx = visibleRows.indexOf(parentTr);
+            if (startFilteredIdx < 0) startFilteredIdx = 0;
+          }
+        }
+        const matchRow = state.selectedCell.coord.match(/[0-9]+$/);
+        if (matchRow) startRow = Math.max(2, parseInt(matchRow[0]) || 2);
+      }
+
+      // 3. FITUR AUTO FILL-DOWN (GOOGLE SHEETS STYLE):
+      // Jika pengguna memblok N baris (misal 10 baris pada 1 kolom) dan data clipboard hanya 1 baris,
+      // duplikasikan nilai tersebut ke seluruh baris yang diblok!
+      if (state.selectionRange && state.selectionRange.rowCount && state.selectionRange.rowCount > 1 && matrix.length === 1) {
+        const targetRowCount = state.selectionRange.rowCount;
+        const singleRow = matrix[0];
+        matrix = Array(targetRowCount).fill(null).map(() => [...singleRow]);
+      } else if (state.selectedColumn && matrix.length === 1 && visibleRows.length > 1) {
+        const targetRowCount = visibleRows.length;
+        const singleRow = matrix[0];
+        matrix = Array(targetRowCount).fill(null).map(() => [...singleRow]);
+      }
+
+      // 4. Kumpulkan rowNumbers nyata untuk DATA_PASIEN
+      if (state.activeSheet === "DATA_PASIEN" && visibleRows.length > 0) {
+        for (let r = 0; r < matrix.length; r++) {
+          const targetIdx = startFilteredIdx + r;
+          if (visibleRows[targetIdx]) {
+            const dbRow = visibleRows[targetIdx].getAttribute("data-db-row") || visibleRows[targetIdx].getAttribute("data-row");
+            if (dbRow) {
+              targetRowNumbers.push(parseInt(dbRow));
+            }
+          }
+        }
+      }
+
+      const colName = state.selectedColumn || (state.selectedCell ? state.selectedCell.col : 'A');
+      showToast(`Sedang menempelkan ${matrix.length} baris ke Kolom ${colName} dan menyinkronkan ke Upstash Redis...`, "info");
 
       try {
+        const payload = {
+          action: "batch_paste",
+          sheet: state.activeSheet,
+          startRow: startRow,
+          startCol: startCol,
+          matrix: matrix
+        };
+
+        // Jika terdapat target baris terfilter, lampirkan rowNumbers agar tepat sasaran
+        if (targetRowNumbers.length > 0) {
+          payload.rowNumbers = targetRowNumbers;
+        }
+
         const res = await fetch("/api", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "batch_paste",
-            sheet: state.activeSheet,
-            startRow: startRow,
-            startCol: startCol,
-            matrix: matrix
-          })
+          body: JSON.stringify(payload)
         });
 
         const json = await res.json();
@@ -1395,12 +1956,14 @@
           showToast(`Berhasil! ${json.message || matrix.length + ' baris tersimpan di Redis L1'}`, "success");
           await loadAllData(false);
 
+          clearAllSelection();
+
           setTimeout(() => {
             const table = document.getElementById(`table-${state.activeSheet}`);
             if (table) {
-              const rows = table.querySelectorAll("tbody tr");
+              const rows = Array.from(table.querySelectorAll("tbody tr:not(.empty-state)"));
               for (let r = 0; r < matrix.length; r++) {
-                const targetRowIndex = (startRow - 2) + r;
+                const targetRowIndex = startFilteredIdx + r;
                 if (rows[targetRowIndex]) {
                   const cells = rows[targetRowIndex].querySelectorAll(".cell");
                   for (let c = 0; c < matrix[r].length; c++) {
@@ -1735,14 +2298,110 @@
     }
 
     // Filters and Search
+    function focusCustomHInput(e) {
+      if (e) e.stopPropagation();
+      const inp = document.getElementById("custom-h-input");
+      if (inp) {
+        inp.focus();
+        if (inp.value.trim()) {
+          applyFilter("custom_h");
+        }
+      }
+    }
+
+    function handleCustomHChange(val) {
+      const container = document.getElementById("custom-h-container");
+      const clearBtn = document.getElementById("custom-h-clear-btn");
+      const raw = String(val || "").trim();
+
+      if (raw !== "") {
+        // Mendukung angka tunggal (misal "3") maupun multi-hari (misal "0, 3" atau "0, 1, 2")
+        const parts = raw.split(/[\s,;]+/).map(x => x.trim()).filter(x => x !== "" && !isNaN(x));
+        if (parts.length > 0) {
+          const numbers = parts.map(x => parseInt(x, 10));
+          state.customHDaysList = numbers;
+          state.customHDays = numbers[0];
+          if (container) {
+            container.classList.add("has-value");
+            container.classList.add("active");
+          }
+          if (clearBtn) clearBtn.style.display = "inline-flex";
+          applyFilter("custom_h");
+          return;
+        }
+      }
+
+      state.customHDays = null;
+      state.customHDaysList = [];
+      if (container) {
+        container.classList.remove("has-value");
+        container.classList.remove("active");
+      }
+      if (clearBtn) clearBtn.style.display = "none";
+      if (state.activeFilter === "custom_h") {
+        applyFilter("all");
+      }
+    }
+
+    function clearCustomHFilter(e) {
+      if (e) e.stopPropagation();
+      const inp = document.getElementById("custom-h-input");
+      const container = document.getElementById("custom-h-container");
+      const clearBtn = document.getElementById("custom-h-clear-btn");
+      if (inp) {
+        inp.value = "";
+        inp.focus();
+      }
+      if (container) {
+        container.classList.remove("has-value");
+        container.classList.remove("active");
+      }
+      if (clearBtn) clearBtn.style.display = "none";
+      state.customHDays = null;
+      state.customHDaysList = [];
+      applyFilter("all");
+    }
+
+    function handleCustomHKey(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleCustomHChange(e.target.value);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clearCustomHFilter(e);
+      }
+    }
+
     function applyFilter(filterName) {
       state.activeFilter = filterName;
       document.querySelectorAll(".filter-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.filter === filterName);
       });
+      const hContainer = document.getElementById("custom-h-container");
+      if (hContainer) {
+        const isCustomActive = filterName === "custom_h" || (state.customHDaysList && state.customHDaysList.length > 0);
+        hContainer.classList.toggle("active", isCustomActive);
+      }
       renderTablePatients();
       renderCardsPatients();
       updateRowCountStatus();
+    }
+
+    async function triggerRestore408Modal() {
+      if (!confirm("Konfirmasi: Pulihkan seluruh 408 data pasien RSKDGM asli ke Upstash Redis?")) return;
+      showToast("Sedang memulihkan 408 data pasien ke Upstash Redis...");
+      try {
+        const res = await fetch("/api/restore-408", { method: "POST" });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(`Berhasil! ${json.message}`);
+          await loadAllData(true);
+        } else {
+          alert("Gagal memulihkan: " + json.message);
+        }
+      } catch (e) {
+        alert("Error: " + e.message);
+      }
     }
 
     function handleSearch(val) {
@@ -2152,11 +2811,23 @@
       });
     }
 
+    // Helper: Batalkan inline editor yang sedang aktif tanpa memicu commit basi
+    function cancelActiveInlineEdit() {
+      if (state.activeInlineEditor) {
+        if (typeof state.activeInlineEditor.cancel === 'function') {
+          state.activeInlineEditor.cancel();
+        }
+        state.activeInlineEditor = null;
+      }
+    }
+
     // =========================================================================
     // INLINE CELL DOUBLE-CLICK EDITING
     // =========================================================================
     function startInlineEdit(cellEl, colKey, rowNum, sheetName) {
       if (cellEl.querySelector('input.cell-inline-editor')) return;
+      cancelActiveInlineEdit();
+
       const currentVal = cellEl.textContent.trim();
       const input = document.createElement('input');
       input.className = 'cell-inline-editor';
@@ -2167,10 +2838,31 @@
       input.select();
 
       let committed = false;
-      function commit() {
-        if (committed) return;
+
+      function cancel() {
         committed = true;
+        if (cellEl.contains(input)) {
+          cellEl.textContent = currentVal;
+        }
+      }
+
+      state.activeInlineEditor = { input, cancel };
+
+      function commit(force = false) {
+        if (committed) return;
         const newVal = input.value.trim() || '-';
+
+        // Jika nilai tidak berubah dari nilai awal sel dan tidak dipaksa (force), jangan overwrite ke server!
+        if (!force && newVal === currentVal) {
+          committed = true;
+          cellEl.textContent = currentVal;
+          state.activeInlineEditor = null;
+          return;
+        }
+
+        committed = true;
+        state.activeInlineEditor = null;
+
         cellEl.textContent = newVal;
         state.selectedCell.value = newVal;
         const fInput = document.getElementById('formula-input');
@@ -2195,18 +2887,32 @@
             colKey: colKey,
             value: newVal
           })
+        }).then(() => {
+          loadAllData(false);
         }).catch(err => console.error('Inline edit sync error:', err));
       }
 
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          commit();
-        } else if (e.key === 'Escape') {
-          committed = true;
-          cellEl.textContent = currentVal;
+      input._commit = commit;
+
+      input.addEventListener('paste', (e) => {
+        const pasteVal = (e.clipboardData || window.clipboardData).getData('text/plain');
+        if (pasteVal && !pasteVal.includes('\t') && !pasteVal.includes('\n')) {
+          e.preventDefault();
+          input.value = pasteVal.trim();
+          commit(true);
         }
       });
-      input.addEventListener('blur', commit);
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          commit(true);
+        } else if (e.key === 'Escape') {
+          cancel();
+        }
+      });
+      input.addEventListener('blur', () => {
+        commit(false);
+      });
     }
 
     // =========================================================================
@@ -2292,6 +2998,29 @@
       }
     }
 
+    // Push to GAS
+    async function pushToGAS() {
+      const btn = document.getElementById("btn-sync-push");
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>Mengirim...</span>`;
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/sync/push", { method: "POST" });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(json.message);
+        } else {
+          showToast(json.message, "error");
+        }
+      } catch (err) {
+        showToast(`Push error: ${err.message}`, "error");
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+      }
+    }
+
     // Export CSV
     function exportActiveSheetToCSV() {
       let csvContent = "data:text/csv;charset=utf-8,";
@@ -2335,9 +3064,9 @@
     // Toggle Fullscreen
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
+        document.documentElement.requestFullscreen().catch(() => { });
       } else {
-        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => { });
       }
     }
 
@@ -2347,4 +3076,5 @@
     });
   </script>
 </body>
+
 </html>
