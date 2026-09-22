@@ -278,58 +278,7 @@ const DEFAULT_PROMPTS = [
   {
     kodePrompt: "PROMPT_RSKDGM_HUMAN",
     judul: "Resepsionis Birokratis & Konsultan Klinis RSKDGM",
-    systemPrompt: `Anda adalah Asisten Pelayanan Administrasi & Informasi Medis Resmi dari Rumah Sakit Khusus Daerah (RSKD) Gigi dan Mulut Provinsi Sulawesi Selatan, bertugas pada unit pelayanan Poli Konservasi dan Endodonsi.
-
-KARAKTER & REGISTER BAHASA (BIROKRATIS RUMAH SAKIT FORMAL):
-1. Menggunakan Bahasa Indonesia resmi, administratif, santun, lugas, profesional, presisi, berwibawa, dan mengayomi selayaknya aparatur rumah sakit pemerintah provinsi.
-2. Adaptabilitas Bahasa Pasien: Anda sangat memahami singkatan percakapan (contoh: "yg", "ap", "knp", "bsk", "skrg", "gmn", "sy", "tdk", "jd", dll.), namun Anda WAJIB merespons kembali menggunakan kalimat formal, runtut, dan tata bahasa baku yang rapi.
-3. PERSONALISASI NAMA LENGKAP RESMI (MUTLAK):
-   - Wajib memeriksa identitas pasien pada database rekam medis SIMGOS berdasarkan nomor WhatsApp / LID pengirim.
-   - Selalu menyapa pasien dengan sebutan kehormatan resmi "Bapak", "Ibu", atau "Sdr./Sdri." diikuti NAMA LENGKAP resmi pasien sesuai data yang tercatat di database.
-   - DILARANG memotong nama resmi, menggunakan nama panggilan buatan, atau menyebutkan nama pasien lain yang bukan milik pengirim tersebut! JANGAN PERNAH menggunakan nama panggilan asisten buatan seperti "RSKD Care" atau "RSKDGM Care".
-
-KEPAKARAN KLINIS KEDOKTERAN GIGI LENGKAP (SELURUH SPESIALISASI):
-Anda memiliki wawasan klinis mendalam dalam menjawab segala konsultasi maupun pertanyaan pasien seputar bidang kedokteran gigi secara ilmiah dan berbasis bukti medis (evidence-based dentistry):
-1. Spesialisasi Konservasi Gigi & Endodonsi (Fokus Utama Unit):
-   - Perawatan Saluran Akar (PSA / Root Canal Treatment) gigi vital/non-vital, sterilisasi saluran akar, medikamen intrakanal (Kalsium Hidroksida/Ca(OH)2), obturasi gutta-percha hermetis.
-   - Restorasi komposit resin estetik direct/indirect, penumpatan kavitas kelas I hingga V, inlay/onlay/overlay porselen/komposit, mahkota tiruan pasak fiber (core build-up).
-   - Penanganan pulpitis reversibel, pulpitis ireversibel simtomatik/asimtomatik, nekrosis pulpa, lesi periapikal, pulp capping (direct/indirect), serta bleaching intrakoronal (non-vital bleaching).
-2. Spesialisasi Kedokteran Gigi Lainnya:
-   - Bedah Mulut & Maksilofasial: Odontektomi gigi impaksi molar ketiga (M3), ekstraksi penyulit, alveolektomi, kista rongga mulut, penanganan abses odontogenik.
-   - Periodonsia: Gingivitis, periodontitis marginalis/apikalis, kuretase subgingiva, scaling dan root planing (pembersihan karang gigi), splinting gigi goyang.
-   - Ortodonsia: Maloklusi gigi (crowding/spacing), perawatan piranti cekat (behel/braket), piranti lepasan, retainers pasca-perawatan ortodonti.
-   - Prostodonsia: Gigi tiruan lepasan akrilik/valplast/kerangka logam, gigi tiruan jembatan (fixed bridge), mahkota tiruan porselen/zirconia, dental implant.
-   - Pedodonsia (Kedokteran Gigi Anak): Karies botol susu (early childhood caries), pulpotomi, pulpektomi gigi sulung, space maintainer.
-   - Penyakit Mulut: Stomatitis aftosa rekuren (SAR/sariawan), oral candidiasis, leukoplakia, glositis, xerostomia (mulut kering).
-   - Radiologi Kedokteran Gigi: Evaluasi radiograf periapikal, panoramik OPG, bitewing, dan radiografi 3D CBCT.
-Catatan Edukasi Medis: Selalu sampaikan bahwa informasi yang diberikan melalui WhatsApp ini bersifat edukasi administratif dan konsultasi awal. Penegakan diagnosis definitif dan rencana perawatan kuratif wajib ditentukan secara langsung melalui pemeriksaan klinis di Dental Chair Poli Konservasi oleh DPJP.
-
-PANDUAN OPERASIONAL JADWAL KONTROL & RESCHEDULE (MUTLAK):
-1. DOKTER PENANGGUNG JAWAB PELAYANAN (DPJP):
-   - DPJP Utama: drg. Hj. Kurniawaty, Sp.KG (Spesialis Konservasi Gigi / Endodontik)
-   - Dokter Pendamping: drg. M. Aksa Arsyad
-   - Unit Pelayanan: Poli Konservasi dan Endodonsi RSKD Gigi dan Mulut Prov. Sulsel.
-2. VERIFIKASI JADWAL KONTROL & TANGGAL RESCHEDULE:
-   - Jika pasien menanyakan jadwal kontrolnya:
-     a. Apabila pasien telah memiliki "Tanggal Reschedule Baru" yang sah di sistem (Kolom 19):
-        Anda WAJIB membatalkan/mengoreksi jadwal semula dan menegaskan jadwal baru secara administratif:
-        "Berdasarkan verifikasi sistem data rekam medis kami, jadwal kontrol semula Bapak/Ibu [Nama Lengkap] pada tanggal [Tanggal Kontrol Semula] telah resmi dijadwalkan ulang (reschedule) ke tanggal [Tanggal Reschedule Baru] bersama DPJP Utama kami, drg. Hj. Kurniawaty, Sp.KG di Poli Konservasi dan Endodonsi. Nomor Rekam Medis (RM) Anda adalah [No RM]."
-        DILARANG KERAS menyatakan jadwal tetap pada tanggal lama jika sudah ada tanggal reschedule!
-     b. Apabila status pasien "Terbatalkan Mobile JKN":
-        Sampaikan secara resmi bahwa jadwal kontrol semula pada tanggal [Tanggal Kontrol Semula] tercatat terbatalkan otomatis oleh sistem aplikasi Mobile JKN. Laporan telah kami teruskan secara kedinasan kepada DPJP Utama (drg. Hj. Kurniawaty, Sp.KG) untuk penjadwalan kontrol pengganti, dan pasien dimohon menunggu konfirmasi jadwal baru di nomor WhatsApp ini.
-        Sertakan tag aksi: [ACTION:TERBATALKAN_JKN]
-     c. Apabila tidak ada perubahan/reschedule:
-        Tegaskan bahwa jadwal kontrol tetap aktif pada tanggal [Tanggal Kontrol Semula] bersama DPJP Utama (drg. Hj. Kurniawaty, Sp.KG).
-3. DETEKSI AFIRMASI KEHADIRAN:
-   - Jika pasien mengonfirmasi kehadiran (contoh: "hadir", "bisa datang", "siap hadir"), sambut secara resmi dan ingatkan berkas KTP, kartu BPJS Kesehatan aktif, serta kartu kontrol saat registrasi loket.
-   - Sertakan tag aksi: [ACTION:HADIR]
-4. DETEKSI PERMOHONAN RESCHEDULE OLEH PASIEN:
-   - Jika pasien mengajukan perubahan hari/tanggal kontrol:
-     Terjemahkan tanggal ke format standar "YYYY-MM-DD" (Tahun berjalan: 2026).
-     Sertakan tag aksi: [ACTION:RESCHEDULE:YYYY-MM-DD]
-   - Jika pasien tidak menyebutkan tanggal spesifik, tanyakan opsi tanggal kontrol yang dikehendaki secara formal.
-5. RESPON SALAH ORANG / SALAH NOMOR:
-   - Sampaikan permohonan maaf administratif secara santun apabila nomor kontak tidak sesuai dengan pasien yang bersangkutan, dan persilakan pesan diabaikan.`,
+    systemPrompt: `Anda adalah Asisten Pelayanan Administrasi & Informasi Medis Resmi dari Rumah Sakit Khusus Daerah (RSKD) Gigi dan Mulut Provinsi Sulawesi Selatan, bertugas pada unit pelayanan Poli Konservasi dan Endodonsi.`,
     isActive: "TRUE",
     keterangan: "Prompt utama interaksi pasien gaya birokratis formal rumah sakit, pakar kedokteran gigi & kontras tanggal reschedule"
   }
@@ -366,10 +315,10 @@ function rebuildFastIndexes() {
     if (p.cleanPhone) fastIndex.byPhone.set(p.cleanPhone, p);
     if (p.noHp) fastIndex.byPhone.set(formatInternationalPhone(p.noHp), p);
     if (p.noLid && p.noLid !== "-" && p.noLid.length >= 10) {
-      fastIndex.byLid.set(p.noLid, p);
+      fastIndex.byLid.set(cleanLidDigits(p.noLid), p);
     }
     if (p.noSender && p.noSender !== "-" && p.noSender.length >= 10) {
-      fastIndex.byLid.set(p.noSender, p);
+      fastIndex.byLid.set(cleanLidDigits(p.noSender), p);
     }
     if (p.noRm && p.noRm !== "-") {
       const cleanRm = String(p.noRm).toLowerCase().replace(/[^\w]/g, "");
@@ -380,13 +329,13 @@ function rebuildFastIndexes() {
 
 async function redisCommand(command, ...args) {
   if (!UPSTASH_URL || !UPSTASH_TOKEN) return null;
-  const maxRetries = 3;
+  const maxRetries = 2;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const url = `${UPSTASH_URL}/${[command, ...args.map(encodeURIComponent)].join("/")}`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
@@ -397,7 +346,7 @@ async function redisCommand(command, ...args) {
 
       if (!res.ok) {
         if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, attempt * 150));
+          await new Promise(r => setTimeout(r, 100));
           continue;
         }
         return null;
@@ -406,9 +355,9 @@ async function redisCommand(command, ...args) {
       return data.result;
     } catch (err) {
       if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, attempt * 200));
+        await new Promise(r => setTimeout(r, 150));
       } else {
-        console.warn(`Upstash Redis error (${command}):`, err.message);
+        console.warn(`Upstash Redis notice (${command}):`, err.message);
       }
     }
   }
@@ -427,14 +376,14 @@ async function redisGet(key) {
 
 async function redisSet(key, value) {
   if (!UPSTASH_URL || !UPSTASH_TOKEN) return null;
-  const maxRetries = 3;
+  const maxRetries = 2;
   const payload = typeof value === "string" ? value : JSON.stringify(value);
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const url = `${UPSTASH_URL}/set/${encodeURIComponent(key)}`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const res = await fetch(url, {
         method: "POST",
@@ -450,7 +399,7 @@ async function redisSet(key, value) {
 
       if (!res.ok) {
         if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, attempt * 150));
+          await new Promise(r => setTimeout(r, 100));
           continue;
         }
         return null;
@@ -459,9 +408,9 @@ async function redisSet(key, value) {
       return data.result;
     } catch (err) {
       if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, attempt * 200));
+        await new Promise(r => setTimeout(r, 150));
       } else {
-        console.warn(`Upstash Redis POST set error (${key}):`, err.message);
+        console.warn(`Upstash Redis set notice (${key}):`, err.message);
       }
     }
   }
@@ -472,21 +421,21 @@ let persistTimeouts = {};
 function scheduleBackgroundPersist(sheetName) {
   if (sheetName === "DATA_PASIEN") rebuildFastIndexes();
 
-  // Non-blocking immediate asynchronous persistence (ultra-fast response)
+  // Asynchronous background non-blocking persistence
   clearTimeout(persistTimeouts[sheetName]);
   persistTimeouts[sheetName] = setTimeout(() => {
     setImmediate(async () => {
       try {
         await persistSheet(sheetName);
       } catch (err) {
-        console.warn(`Background persist error on ${sheetName}:`, err.message);
+        console.warn(`Background persist notice on ${sheetName}:`, err.message);
       }
     });
-  }, 50);
+  }, 30);
 }
 
 // ==========================================
-// 3. SEEDING & SYNC SUBSYSTEM (FULL 19 COLUMNS)
+// 3. SEEDING & SYNC SUBSYSTEM
 // ==========================================
 
 function isDummyPatient(p) {
@@ -554,7 +503,6 @@ function loadInitialSeedPatients() {
       }
     }
   }
-
   return [];
 }
 
@@ -562,7 +510,7 @@ let dbInitPromise = null;
 function ensureDatabaseInitialized() {
   if (!dbInitPromise) {
     dbInitPromise = initializeDatabase().catch(err => {
-      console.warn("Database initialization notice (using memory fallback):", err.message);
+      console.warn("Database initialization notice (memory active):", err.message);
     });
   }
   return dbInitPromise;
@@ -577,47 +525,23 @@ async function initializeDatabase() {
     redisGet("CUSTOM_PROMPT")
   ]);
 
-  // Bersihkan data dummy secara otomatis jika pernah tersusup
   let cleanRedisPatients = Array.isArray(redisPatients) ? sanitizeAndFilterDummy(redisPatients) : [];
 
-  // =========================================================================
-  // KUNCI KEABADIAN DATABASE REDIS (ZERO-DUMMY PERMANENT STORAGE)
-  // Jika di Redis sudah ada data riil (berapapun jumlahnya: 408, 409, 500, dst.),
-  // server HANYA MEMBACA dan TIDAK PERNAH MENIMPA REDIS DENGAN DATA SEED/DUMMY!
-  // =========================================================================
   if (cleanRedisPatients.length > 0) {
     redisPatients = cleanRedisPatients;
-    console.log(`🔒 Data pasien riil di Upstash Redis aman & utuh (${redisPatients.length} pasien). Tidak melakukan re-seed.`);
   } else {
-    // HANYA JIKA REDIS BENAR-BENAR KOSONG (0 Data):
-    console.log("⚠️ DATA_PASIEN di Redis kosong, memeriksa key cadangan riil...");
     let backupPatients = await redisGet("DATA_PASIEN_BACKUP_408");
     let cleanBackup = Array.isArray(backupPatients) ? sanitizeAndFilterDummy(backupPatients) : [];
 
     if (cleanBackup.length > 0) {
       redisPatients = cleanBackup;
       await redisSet("DATA_PASIEN", cleanBackup);
-      console.log(`🛡️ Berhasil memulihkan ${cleanBackup.length} pasien dari key cadangan Redis.`);
     } else {
       const seedPatients = sanitizeAndFilterDummy(loadInitialSeedPatients());
       if (seedPatients && seedPatients.length > 0) {
         redisPatients = seedPatients;
         await redisSet("DATA_PASIEN", seedPatients);
         await redisSet("DATA_PASIEN_BACKUP_408", seedPatients);
-        console.log(`📦 Berhasil inisialisasi awal ${seedPatients.length} pasien dari file backup lokal.`);
-      } else if (GAS_URL) {
-        try {
-          const gasRes = await fetchGasJson(`${GAS_URL}?action=get_all_patient_phones`);
-          const cleanGas = Array.isArray(gasRes && gasRes.data) ? sanitizeAndFilterDummy(gasRes.data) : [];
-          if (cleanGas.length > 0) {
-            redisPatients = cleanGas;
-            await redisSet("DATA_PASIEN", cleanGas);
-            await redisSet("DATA_PASIEN_BACKUP_408", cleanGas);
-            console.log(`☁️ Berhasil inisialisasi ${cleanGas.length} pasien dari Google Sheets.`);
-          }
-        } catch (e) {
-          console.warn("Hydrate from GAS notice:", e.message);
-        }
       }
     }
   }
@@ -646,34 +570,21 @@ async function initializeDatabase() {
       noLid: String(p.noLid || p.existingLid || "-").trim(),
       tglReschedule: String(p.tglReschedule || "-").trim()
     }));
-    console.log(`Loaded and validated ${memoryStore.patients.length} patients from Redis.`);
   }
 
   if (!redisSettings || !Array.isArray(redisSettings) || redisSettings.length === 0) {
-    await redisSet("SETTING", DEFAULT_SETTINGS);
     memoryStore.settings = DEFAULT_SETTINGS;
   } else {
     memoryStore.settings = redisSettings;
-    // Auto-sync AI API keys dari process.env jika diatur di .env / Vercel
-    const geminiSetting = memoryStore.settings.find(s => s.parameter === "GEMINI_API_KEY");
-    if (geminiSetting && process.env.GEMINI_API_KEY) {
-      geminiSetting.value = process.env.GEMINI_API_KEY.trim();
-    }
-    const groqSetting = memoryStore.settings.find(s => s.parameter === "GROQ_API_KEY");
-    if (groqSetting && process.env.GROQ_API_KEY) {
-      groqSetting.value = process.env.GROQ_API_KEY.trim();
-    }
   }
 
   if (!redisTemplates || !Array.isArray(redisTemplates) || redisTemplates.length === 0) {
-    await redisSet("CUSTOM_FORMAT", DEFAULT_TEMPLATES);
     memoryStore.templates = DEFAULT_TEMPLATES;
   } else {
     memoryStore.templates = redisTemplates;
   }
 
   if (!redisPrompts || !Array.isArray(redisPrompts) || redisPrompts.length === 0) {
-    await redisSet("CUSTOM_PROMPT", DEFAULT_PROMPTS);
     memoryStore.prompts = DEFAULT_PROMPTS;
   } else {
     memoryStore.prompts = redisPrompts;
@@ -696,10 +607,9 @@ async function persistSheet(sheetName) {
 }
 
 // ==========================================
-// 4. REST API COMPATIBILITY ENGINE (GAS COMPATIBLE)
+// 4. HELPER & FORMATTERS
 // ==========================================
 
-// Timezone and Text Clean Helpers
 function getMakassarTodayStr() {
   try {
     return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Makassar" }).format(new Date());
@@ -719,14 +629,13 @@ function cleanLidDigits(lid) {
   return String(lid).replace(/\D/g, "");
 }
 
-// Format Variabel Pesan WhatsApp (100% Identik dengan Code Gs compileMessage)
 function compileMessage(templateStr, patient, config) {
   if (!templateStr) return "";
 
-  const doc1 = config?.config?.doctors?.[0]?.name || config?.doctors?.[0]?.name || "drg. Hj. Kurniawaty, Sp.KG";
-  const doc2 = config?.config?.doctors?.[1]?.name || config?.doctors?.[1]?.name || "drg. M. Aksa Arsyad";
-  const instansi = config?.config?.instansi || config?.instansi || "RSKD Gigi dan Mulut Prov. Sulsel";
-  const poli = config?.config?.poli || config?.poli || "Poli Konservasi dan Endodonsi";
+  const doc1 = config?.config?.doctors?.[0]?.name || "drg. Hj. Kurniawaty, Sp.KG";
+  const doc2 = config?.config?.doctors?.[1]?.name || "drg. M. Aksa Arsyad";
+  const instansi = config?.config?.instansi || "RSKD Gigi dan Mulut Prov. Sulsel";
+  const poli = config?.config?.poli || "Poli Konservasi dan Endodonsi";
 
   return templateStr
     .replace(/{NAMA_PASIEN}/g, patient.namaPasien || "-")
@@ -784,6 +693,107 @@ function getCompiledConfig() {
   };
 }
 
+// ==========================================
+// CORE ENGINE: SMART STATUS UPDATE (H-2 vs H-1)
+// ==========================================
+function applySmartStatusUpdate(target, params) {
+  let modeH = String(params.mode || "auto").toLowerCase();
+  const updateType = String(params.type || "pasien").toLowerCase();
+  const customStatus = String(params.status || "Hadir (Terkonfirmasi)").trim();
+  const customDoctorStatus = String(params.doctor_status || params.status || customStatus).trim();
+  const cleanSenderPhone = params.cleanSenderPhone;
+  const cleanLidVal = params.cleanLidVal;
+
+  if (updateType === "lid_only") {
+    if (cleanLidVal) target.noLid = cleanLidVal;
+    if (cleanSenderPhone) target.noSender = cleanSenderPhone;
+    rebuildFastIndexes();
+    scheduleBackgroundPersist("DATA_PASIEN");
+    return {
+      resolvedMode: modeH,
+      message: `Auto-bind LID baris ${target.rowNumber} diperbarui ke '${cleanLidVal}'.`
+    };
+  }
+
+  // 1. Logika Deteksi Pintar: Apakah ini balasan siklus H-1 atau H-2?
+  if (modeH === "auto" || !modeH || (modeH !== "h1" && modeH !== "h2")) {
+    const sH1 = String(target.statusWaH1 || "").trim().toLowerCase();
+    const sH2 = String(target.statusWaH2 || "").trim().toLowerCase();
+
+    if (sH1 === "terkirim") {
+      modeH = "h1";
+    } else if (sH2 === "terkirim" || sH2.includes("hadir")) {
+      modeH = "h2";
+    } else {
+      const effectiveDateStr = (target.tglReschedule && target.tglReschedule !== "-" && /^\d{4}-\d{2}-\d{2}$/.test(target.tglReschedule))
+        ? target.tglReschedule
+        : target.tglKontrol;
+      const todayStr = getMakassarTodayStr();
+
+      if (effectiveDateStr && /^\d{4}-\d{2}-\d{2}$/.test(effectiveDateStr)) {
+        const diffMs = new Date(effectiveDateStr) - new Date(todayStr);
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        modeH = (diffDays <= 1) ? "h1" : "h2";
+      } else {
+        modeH = "h2";
+      }
+    }
+  }
+
+  // 2. Eksekusi Pembaruan Data
+  if (updateType === "konfirmasi_hadir" || customStatus.toLowerCase().includes("hadir")) {
+    if (modeH === "h1") {
+      target.statusWaH1 = "Hadir (Terkonfirmasi)";
+      target.statusDokterH1 = "Hadir (Terkonfirmasi)";
+    } else {
+      target.statusWaH2 = "Hadir (Terkonfirmasi)";
+      target.statusDokterH2 = "Hadir (Terkonfirmasi)";
+    }
+  } else if (updateType === "jkn_terbatalkan" || updateType === "terbatalkan" || customStatus.toLowerCase().includes("terbatalkan")) {
+    if (modeH === "h1") {
+      target.statusWaH1 = "Batal Mobile JKN";
+      target.statusDokterH1 = "Batal Mobile JKN";
+    } else {
+      target.statusWaH2 = "Batal Mobile JKN";
+      target.statusDokterH2 = "Batal Mobile JKN";
+    }
+    target.statusReschedule = "Terbatalkan Mobile JKN";
+  } else if (updateType === "both") {
+    if (modeH === "h1") {
+      target.statusWaH1 = customStatus;
+      target.statusDokterH1 = customDoctorStatus;
+    } else {
+      target.statusWaH2 = customStatus;
+      target.statusDokterH2 = customDoctorStatus;
+    }
+  } else if (updateType === "reschedule") {
+    target.statusReschedule = customStatus;
+  } else if (updateType === "dokter") {
+    if (modeH === "h1") target.statusDokterH1 = customStatus;
+    else target.statusDokterH2 = customStatus;
+  } else {
+    if (modeH === "h1") target.statusWaH1 = customStatus;
+    else target.statusWaH2 = customStatus;
+  }
+
+  if (cleanSenderPhone) {
+    target.noSender = cleanSenderPhone;
+  } else if (!target.noSender || target.noSender === "-") {
+    target.noSender = formatInternationalPhone(target.noHp) || "-";
+  }
+  if (cleanLidVal) {
+    target.noLid = cleanLidVal;
+  }
+
+  rebuildFastIndexes();
+  scheduleBackgroundPersist("DATA_PASIEN");
+
+  return {
+    resolvedMode: modeH,
+    message: `Baris ${target.rowNumber} (${modeH.toUpperCase()} - ${updateType}) berhasil diperbarui ke '${customStatus}'.`
+  };
+}
+
 // Health Check Endpoint (Ultra-Fast Diagnostics)
 app.get("/api/health", async (req, res) => {
   const start = performance.now();
@@ -822,12 +832,11 @@ app.use(async (req, res, next) => {
 });
 
 // ==========================================
-// GET /api Router (16 Actions Full Parity with Code Gs)
+// GET /api Router (16 Actions)
 // ==========================================
 app.get(["/api", "/api/"], async (req, res) => {
   const action = (req.query.action || "ping").toLowerCase();
 
-  // Edge Micro-Caching for Read-Only Idempotent Endpoints (<25ms on Vercel Edge)
   const isCacheable = ["ping", "get_settings", "get_templates", "get_active_prompt", "get_summary_stats", "health"].includes(action);
   if (isCacheable) {
     res.setHeader("Cache-Control", "public, max-age=1, s-maxage=5, stale-while-revalidate=15");
@@ -850,25 +859,7 @@ app.get(["/api", "/api/"], async (req, res) => {
       layer1_redis: UPSTASH_URL ? "Connected" : "Memory Cache",
       layer2_gas: GAS_URL ? "Configured" : "Disabled",
       totalPatients: memoryStore.patients.length,
-      indexedPatients: fastIndex.byPhone.size,
-      endpoints: {
-        "1_get_today_patients": "/api?action=get_today_patients",
-        "2_get_settings": "/api?action=get_settings",
-        "3_update_setting": "/api?action=update_setting&param=DELAY_CHAT&value=60",
-        "4_get_templates": "/api?action=get_templates",
-        "5_update_template": "/api?action=update_template&code=WA_PX_H2&text=...",
-        "6_get_active_prompt": "/api?action=get_active_prompt",
-        "7_get_followup_h2": "/api?action=get_followup&mode=h2&tgl=auto",
-        "8_get_followup_h1": "/api?action=get_followup&mode=h1&tgl=auto",
-        "9_get_all_patient_phones": "/api?action=get_all_patient_phones",
-        "10_get_unlinked_patients": "/api?action=get_unlinked_patients",
-        "11_search_patient": "/api?action=search_patient&query=KEYWORD&phone=PHONE&lid=LID",
-        "12_reschedule_patient": "/api?action=reschedule_patient&noRm=NO_RM&newDate=YYYY-MM-DD&no_lid=NOMOR_LID",
-        "13_update_status": "/api?action=update_status&row=ROW_INDEX&mode=h2|h1&type=pasien|dokter|both|lid_only|reschedule&status=Terkirim&doctor_status=Terkirim",
-        "14_fix_sender_columns": "/api?action=fix_sender_columns",
-        "15_get_summary_stats": "/api?action=get_summary_stats",
-        "16_health_check": "/api/health"
-      }
+      indexedPatients: fastIndex.byPhone.size
     });
   }
 
@@ -877,7 +868,7 @@ app.get(["/api", "/api/"], async (req, res) => {
     return res.json(getCompiledConfig());
   }
 
-  // 3. GET TODAY PATIENTS (PRE-CHECK UNTUK EKSTENSI CHROME SIMGOS)
+  // 3. GET TODAY PATIENTS
   if (action === "get_today_patients") {
     const todayStr = getMakassarTodayStr();
     const names = [];
@@ -895,7 +886,7 @@ app.get(["/api", "/api/"], async (req, res) => {
     });
   }
 
-  // 4. GET ALL PATIENT PHONES & UNLINKED PATIENTS (19 FULL COLUMNS)
+  // 4. GET ALL PATIENT PHONES & UNLINKED PATIENTS
   if (action === "get_all_patient_phones" || action === "get_unlinked_patients") {
     const onlyUnlinked = action === "get_unlinked_patients";
     const patients = [];
@@ -989,7 +980,7 @@ app.get(["/api", "/api/"], async (req, res) => {
     return res.json({ status: "success", message: `Template '${code}' berhasil diperbarui.` });
   }
 
-  // 7. GET FOLLOWUP (H-1 / H-2 BLAST LIST DENGAN KOMPILASI PESAN WA LENGKAP)
+  // 7. GET FOLLOWUP (BLAST LIST DENGAN KOMPILASI REAL-TIME)
   if (action === "get_followup") {
     const mode = String(req.query.mode || "h2").toLowerCase();
     const tglParam = String(req.query.tgl || "auto").trim();
@@ -1038,12 +1029,8 @@ app.get(["/api", "/api/"], async (req, res) => {
           const cleanWa = formatInternationalPhone(effectiveWa);
           const effectiveSender = cleanWa || String(p.noSender || "-").trim();
 
-          if (cleanWa && (!p.noSender || p.noSender === "-")) {
-            p.noSender = cleanWa;
-          }
-          if (lidParam && (!p.noLid || p.noLid === "-")) {
-            p.noLid = cleanLidDigits(lidParam);
-          }
+          if (cleanWa && (!p.noSender || p.noSender === "-")) p.noSender = cleanWa;
+          if (lidParam && (!p.noLid || p.noLid === "-")) p.noLid = cleanLidDigits(lidParam);
 
           const pObj = {
             rowNumber: p.rowNumber,
@@ -1069,7 +1056,6 @@ app.get(["/api", "/api/"], async (req, res) => {
             tglReschedule: p.tglReschedule || "-"
           };
 
-          // Compile Pesan WA Pasien & Dokter secara Real-Time persis Code Gs
           pObj.pesan_wa_pasien = compileMessage(pxTemplate, pObj, config);
           pObj.pesan_wa_laporan_dokter = compileMessage(docTemplate, pObj, config);
 
@@ -1091,25 +1077,25 @@ app.get(["/api", "/api/"], async (req, res) => {
     });
   }
 
-  // 8. SEARCH PATIENT (ULTRA FAST HASH INDEX O(1) + KOMPILASI PESAN)
+  // 8. SEARCH PATIENT (ULTRA FAST HASH INDEX O(1))
   if (action === "search_patient") {
     const qRaw = String(req.query.query || "").trim();
     const paramPhone = String(req.query.phone || "").trim();
     const paramLid = String(req.query.lid || req.query.no_lid || "").trim();
 
-    const explicitPhone = paramPhone ? cleanPhoneDigits(paramPhone) : (qRaw && qRaw.length <= 15 ? cleanPhoneDigits(qRaw) : "");
-    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (qRaw && qRaw.length >= 10 ? cleanLidDigits(qRaw) : "");
-    const q = qRaw.toLowerCase();
+    const cleanRawDigits = qRaw.replace(/@.*/, "").replace(/\D/g, "");
+    const explicitPhone = paramPhone ? cleanPhoneDigits(paramPhone) : (cleanRawDigits && cleanRawDigits.length <= 15 ? cleanRawDigits : "");
+    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (cleanRawDigits && cleanRawDigits.length >= 10 ? cleanRawDigits : "");
+    const q = qRaw.toLowerCase().replace(/@.*/, "").trim();
 
     if (!q && !explicitPhone && !explicitLid) {
-      return res.status(400).json({ status: "error", message: "Parameter query, phone, atau lid wajib diisi." });
+      return res.status(200).json({ status: "not_found", message: "Parameter query, phone, atau lid kosong.", total: 0, data: [] });
     }
 
     const config = getCompiledConfig();
     const pxTemplate = config.templates["WA_PX_H2"] || config.templates["WA_PX_H1"] || "";
     const matches = [];
 
-    // 1. Fast O(1) Lookup via Index
     let directMatch = null;
     if (explicitLid && fastIndex.byLid.has(explicitLid)) {
       directMatch = fastIndex.byLid.get(explicitLid);
@@ -1121,18 +1107,13 @@ app.get(["/api", "/api/"], async (req, res) => {
 
     if (directMatch) {
       const rowPhoneVal = formatInternationalPhone(directMatch.noHp || explicitPhone);
-      if (rowPhoneVal && (!directMatch.noSender || directMatch.noSender === "-")) {
-        directMatch.noSender = rowPhoneVal;
-      }
-      if (explicitLid && explicitLid.length >= 10 && directMatch.noLid !== explicitLid) {
-        directMatch.noLid = explicitLid;
-      }
+      if (rowPhoneVal && (!directMatch.noSender || directMatch.noSender === "-")) directMatch.noSender = rowPhoneVal;
+      if (explicitLid && explicitLid.length >= 10 && directMatch.noLid !== explicitLid) directMatch.noLid = explicitLid;
 
       const pObj = { ...directMatch };
       pObj.pesan_wa_pasien = compileMessage(pxTemplate, pObj, config);
       matches.push(pObj);
     } else {
-      // Multi-column matching scan fallback
       for (const p of memoryStore.patients) {
         const rowRm = String(p.noRm || "").toLowerCase().trim();
         const rowNama = String(p.namaPasien || "").toLowerCase().trim();
@@ -1149,12 +1130,8 @@ app.get(["/api", "/api/"], async (req, res) => {
 
         if (matchPhone || matchLidCol18 || matchLidCol15 || matchSenderAsPhone || matchRm || matchNama) {
           const rowPhoneVal = formatInternationalPhone(p.noHp || explicitPhone);
-          if (rowPhoneVal && (!p.noSender || p.noSender === "-")) {
-            p.noSender = rowPhoneVal;
-          }
-          if (explicitLid && explicitLid.length >= 10 && rowLidClean !== explicitLid) {
-            p.noLid = explicitLid;
-          }
+          if (rowPhoneVal && (!p.noSender || p.noSender === "-")) p.noSender = rowPhoneVal;
+          if (explicitLid && explicitLid.length >= 10 && rowLidClean !== explicitLid) p.noLid = explicitLid;
 
           const pObj = { ...p };
           pObj.pesan_wa_pasien = compileMessage(pxTemplate, pObj, config);
@@ -1165,10 +1142,10 @@ app.get(["/api", "/api/"], async (req, res) => {
     }
 
     if (matches.length === 0) {
-      return res.json({ status: "not_found", message: "Data pasien tidak ditemukan.", total: 0, data: [] });
+      return res.status(200).json({ status: "not_found", message: "Data pasien tidak ditemukan.", total: 0, data: [] });
     }
 
-    return res.json({
+    return res.status(200).json({
       status: "success",
       query: qRaw,
       total: matches.length,
@@ -1176,75 +1153,69 @@ app.get(["/api", "/api/"], async (req, res) => {
     });
   }
 
-  // 9. RESCHEDULE PATIENT (RESET 4 STATUS BLAST KE PENDING, UPDATE KOLOM 16 & 19)
+  // 9. RESCHEDULE PATIENT (MENDUKUNG ALUR DUA TAHAP: 'RESCHEDULE DIAJUKAN' & PENETAPAN TANGGAL)
   if (action === "reschedule_patient") {
     const noRmTarget = String(req.query.noRm || req.query.norm || "").trim().toLowerCase();
     const noHpTarget = cleanPhoneDigits(req.query.noHp || req.query.phone);
     const noSenderTarget = cleanLidDigits(req.query.noSender || req.query.no_lid);
     const rowTarget = req.query.row ? parseInt(req.query.row, 10) : null;
-    const newDate = String(req.query.newDate || req.query.newdate || "").trim();
-    const customStatus = String(req.query.customStatus || req.query.status || `Reschedule (${newDate})`).trim();
 
-    if (!newDate || (!noRmTarget && !rowTarget && !noHpTarget && !noSenderTarget)) {
-      return res.status(400).json({ status: "error", message: "Parameter 'newDate' dan identitas pasien wajib diisi." });
+    const rawDateInput = String(req.query.newDate || req.query.newdate || "").trim();
+    const dateMatch = rawDateInput.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+    const newDate = dateMatch ? dateMatch[1] : "";
+    const rawStatus = String(req.query.status || req.query.customStatus || "").trim();
+
+    if (!noRmTarget && !rowTarget && !noHpTarget && !noSenderTarget) {
+      return res.status(200).json({ status: "error", message: "Identitas pasien (No RM/No HP/LID) wajib disertakan." });
     }
 
     let target = null;
-    if (rowTarget && rowTarget > 1) {
-      target = fastIndex.byRow.get(rowTarget);
-    }
-    if (!target && noRmTarget) {
-      const cleanRm = noRmTarget.replace(/[^\w]/g, "");
-      target = fastIndex.byRm.get(cleanRm);
-    }
-    if (!target && noHpTarget) {
-      target = fastIndex.byPhone.get(formatInternationalPhone(noHpTarget));
-    }
-    if (!target && noSenderTarget) {
-      target = fastIndex.byLid.get(noSenderTarget);
-    }
+    if (rowTarget && rowTarget > 1) target = fastIndex.byRow.get(rowTarget);
+    if (!target && noRmTarget) target = fastIndex.byRm.get(noRmTarget.replace(/[^\w]/g, ""));
+    if (!target && noHpTarget) target = fastIndex.byPhone.get(formatInternationalPhone(noHpTarget));
+    if (!target && noSenderTarget) target = fastIndex.byLid.get(noSenderTarget);
 
     if (!target) {
-      return res.status(404).json({ status: "error", message: "Data pasien tidak ditemukan untuk di-reschedule." });
+      return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan untuk di-reschedule." });
     }
 
-    // Reset 4 status blast columns to "Pending" identical to Code Gs
-    target.statusWaH2 = "Pending";
-    target.statusDokterH2 = "Pending";
-    target.statusWaH1 = "Pending";
-    target.statusDokterH1 = "Pending";
-
-    const rawSenderResched = req.query.noSender || req.query.phone || req.query.noHp;
-    const rawLidResched = req.query.no_lid || req.query.lid;
-    const cleanPhoneResched = formatInternationalPhone(rawSenderResched);
-    const cleanLidResched = cleanLidDigits(rawLidResched);
-
-    if (cleanPhoneResched) {
-      target.noSender = cleanPhoneResched;
-    } else if (!target.noSender || target.noSender === "-") {
-      target.noSender = formatInternationalPhone(target.noHp) || "-";
-    }
-    if (cleanLidResched) {
-      target.noLid = cleanLidResched;
+    // TAHAP 2: Jika pasien menetapkan tanggal yang sah
+    if (newDate) {
+      target.statusWaH2 = "Pending";
+      target.statusDokterH2 = "Pending";
+      target.statusWaH1 = "Pending";
+      target.statusDokterH1 = "Pending";
+      target.tglReschedule = newDate;
+      target.statusReschedule = `Reschedule (${newDate})`;
+    } 
+    // TAHAP 1: Pasien baru mengajukan reschedule tanpa tanggal
+    else {
+      target.statusReschedule = rawStatus || "Reschedule Diajukan";
     }
 
-    target.statusReschedule = customStatus;
-    target.tglReschedule = newDate;
+    const cleanPhoneResched = formatInternationalPhone(req.query.noSender || req.query.phone || req.query.noHp);
+    const cleanLidResched = cleanLidDigits(req.query.no_lid || req.query.lid);
+
+    if (cleanPhoneResched) target.noSender = cleanPhoneResched;
+    else if (!target.noSender || target.noSender === "-") target.noSender = formatInternationalPhone(target.noHp) || "-";
+    if (cleanLidResched) target.noLid = cleanLidResched;
 
     rebuildFastIndexes();
     scheduleBackgroundPersist("DATA_PASIEN");
 
-    return res.json({
+    return res.status(200).json({
       status: "success",
-      message: `Jadwal kontrol baris ${target.rowNumber} (${target.namaPasien}) berhasil di-reschedule ke ${newDate}. Disimpan di Kolom 19 (Tanggal Reschedule).`,
+      message: newDate 
+        ? `Jadwal pasien ${target.namaPasien} berhasil dialihkan ke ${newDate}.`
+        : `Status pasien ${target.namaPasien} berhasil ditandai sebagai '${target.statusReschedule}'.`,
       rowNumber: target.rowNumber,
-      tglReschedule: newDate,
-      statusReschedule: customStatus,
+      tglReschedule: target.tglReschedule,
+      statusReschedule: target.statusReschedule,
       data: target
     });
   }
 
-  // 10. UPDATE STATUS (SUPPORTS TYPE: PASIEN, DOKTER, BOTH, LID_ONLY, RESCHEDULE)
+  // 10. UPDATE STATUS (VIA GET - SMART STATUS ENGINE)
   if (action === "update_status") {
     const rowParam = req.query.row ? parseInt(req.query.row, 10) : null;
     const noRmParam = String(req.query.noRm || "").trim().toLowerCase();
@@ -1253,10 +1224,6 @@ app.get(["/api", "/api/"], async (req, res) => {
     const rawLidParam = req.query.no_lid || req.query.lid;
     const cleanSenderPhone = formatInternationalPhone(rawSenderParam);
     const cleanLidVal = cleanLidDigits(rawLidParam);
-    const modeH = String(req.query.mode || "h2").toLowerCase();
-    const updateType = String(req.query.type || "pasien").toLowerCase();
-    const customStatus = String(req.query.status || "Terkirim").trim();
-    const customDoctorStatus = String(req.query.doctor_status || req.query.status || "Terkirim").trim();
 
     let target = null;
     if (rowParam && rowParam > 1) {
@@ -1273,59 +1240,27 @@ app.get(["/api", "/api/"], async (req, res) => {
     }
 
     if (!target) {
-      return res.status(404).json({ status: "error", message: "Data pasien tidak ditemukan untuk update status." });
+      return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan untuk update status." });
     }
 
-    if (updateType === "lid_only") {
-      if (cleanLidVal) target.noLid = cleanLidVal;
-      if (cleanSenderPhone) target.noSender = cleanSenderPhone;
-      rebuildFastIndexes();
-      scheduleBackgroundPersist("DATA_PASIEN");
-      return res.json({
-        status: "success",
-        message: `Auto-bind LID baris ${target.rowNumber} diperbarui ke '${cleanLidVal}'.`,
-        data: target
-      });
-    }
+    const result = applySmartStatusUpdate(target, {
+      mode: req.query.mode,
+      type: req.query.type,
+      status: req.query.status,
+      doctor_status: req.query.doctor_status,
+      cleanSenderPhone,
+      cleanLidVal
+    });
 
-    if (updateType === "both") {
-      if (modeH === "h1") {
-        target.statusWaH1 = customStatus;
-        target.statusDokterH1 = customDoctorStatus;
-      } else {
-        target.statusWaH2 = customStatus;
-        target.statusDokterH2 = customDoctorStatus;
-      }
-    } else if (updateType === "reschedule" || updateType === "terbatalkan" || updateType === "jkn_terbatalkan") {
-      target.statusReschedule = customStatus;
-    } else if (updateType === "dokter") {
-      if (modeH === "h1") target.statusDokterH1 = customStatus;
-      else target.statusDokterH2 = customStatus;
-    } else {
-      if (modeH === "h1") target.statusWaH1 = customStatus;
-      else target.statusWaH2 = customStatus;
-    }
-
-    if (cleanSenderPhone) {
-      target.noSender = cleanSenderPhone;
-    } else if (!target.noSender || target.noSender === "-") {
-      target.noSender = formatInternationalPhone(target.noHp) || "-";
-    }
-    if (cleanLidVal) {
-      target.noLid = cleanLidVal;
-    }
-
-    rebuildFastIndexes();
-    scheduleBackgroundPersist("DATA_PASIEN");
-
-    return res.json({
+    return res.status(200).json({
       status: "success",
-      message: `Baris ${target.rowNumber} (${modeH} - ${updateType}) diperbarui ke '${customStatus}'.`,
+      resolved_mode: result.resolvedMode,
+      message: result.message,
       data: target
     });
   }
 
-  // 11. STANDARISASI KOLOM 15 (NO SENDER) MENJADI FORMAT NO WA 628XXX
+  // 11. STANDARISASI KOLOM 15 (NO SENDER)
   if (action === "fix_sender_columns" || action === "sync_sender_columns") {
     let fixedCount = 0;
     for (const p of memoryStore.patients) {
@@ -1400,8 +1335,7 @@ app.get(["/api", "/api/"], async (req, res) => {
 });
 
 // ==========================================
-// 5. UNIVERSAL ROBUST POST /api ROUTER
-// (Supports WhatsApp Bot, SIMGOS Extension Scraper, & Web Portal)
+// 5. UNIVERSAL POST /api ROUTER
 // ==========================================
 app.post(["/api", "/api/", "/"], async (req, res) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -1409,7 +1343,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
   const data = req.body || {};
   const action = (data.action || req.query.action || "").toLowerCase();
 
-  // 1. Batch Update LIDs (Used by WhatsApp Bot Baileys)
+  // 1. Batch Update LIDs
   if (action === "batch_update_lids" && Array.isArray(data.updates)) {
     let count = 0;
     for (const up of data.updates) {
@@ -1445,10 +1379,6 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     const cleanPhoneParam = cleanPhoneDigits(data.noHp || data.phone || req.query.noHp);
     const cleanSenderPhone = formatInternationalPhone(data.noSender || data.phone || data.noHp || req.query.noSender);
     const cleanLidVal = cleanLidDigits(data.no_lid || data.lid || req.query.no_lid);
-    const modeH = (data.mode || req.query.mode || "h2").toLowerCase();
-    const updateType = (data.type || req.query.type || "pasien").toLowerCase();
-    const customStatus = String(data.status || req.query.status || "Terkirim").trim();
-    const customDoctorStatus = String(data.doctor_status || req.query.doctor_status || customStatus).trim();
 
     let target = null;
     if (rowParam && rowParam > 1) {
@@ -1460,58 +1390,61 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     if (!target && cleanPhoneParam) {
       target = fastIndex.byPhone.get(formatInternationalPhone(cleanPhoneParam));
     }
-
-    if (!target) return res.status(404).json({ status: "error", message: "Data pasien tidak ditemukan." });
-
-    if (updateType === "lid_only") {
-      if (cleanLidVal) target.noLid = cleanLidVal;
-      if (cleanSenderPhone) target.noSender = cleanSenderPhone;
-    } else if (updateType === "both") {
-      if (modeH === "h1") {
-        target.statusWaH1 = customStatus;
-        target.statusDokterH1 = customDoctorStatus;
-      } else {
-        target.statusWaH2 = customStatus;
-        target.statusDokterH2 = customDoctorStatus;
-      }
-    } else if (updateType === "reschedule" || updateType === "terbatalkan" || updateType === "jkn_terbatalkan") {
-      target.statusReschedule = customStatus;
-    } else if (updateType === "dokter") {
-      if (modeH === "h1") target.statusDokterH1 = customStatus;
-      else target.statusDokterH2 = customStatus;
-    } else {
-      if (modeH === "h1") target.statusWaH1 = customStatus;
-      else target.statusWaH2 = customStatus;
+    if (!target && (cleanLidVal || cleanSenderPhone)) {
+      target = fastIndex.byLid.get(cleanLidVal || cleanLidDigits(cleanSenderPhone));
     }
 
-    if (cleanSenderPhone) target.noSender = cleanSenderPhone;
-    if (cleanLidVal) target.noLid = cleanLidVal;
+    if (!target) return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan." });
 
-    rebuildFastIndexes();
-    scheduleBackgroundPersist("DATA_PASIEN");
-    return res.json({ status: "success", message: `Status baris ${target.rowNumber} berhasil diperbarui ke '${customStatus}'.`, data: target });
+    const result = applySmartStatusUpdate(target, {
+      mode: data.mode || req.query.mode,
+      type: data.type || req.query.type,
+      status: data.status || req.query.status,
+      doctor_status: data.doctor_status || req.query.doctor_status,
+      cleanSenderPhone,
+      cleanLidVal
+    });
+
+    return res.status(200).json({
+      status: "success",
+      resolved_mode: result.resolvedMode,
+      message: result.message,
+      data: target
+    });
   }
 
   // 3. Reschedule Patient via POST
   if (action === "reschedule_patient") {
     const noRm = String(data.noRm || data.norm || req.query.noRm || "").trim();
-    const newDate = String(data.newDate || data.newdate || req.query.newDate || "").trim();
+    const rawDateInput = String(data.newDate || data.newdate || req.query.newDate || "").trim();
+    const dateMatch = rawDateInput.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+    const newDate = dateMatch ? dateMatch[1] : "";
     const cleanRm = noRm.toLowerCase().replace(/[^\w]/g, "");
     const target = cleanRm ? fastIndex.byRm.get(cleanRm) : null;
 
-    if (!target) return res.status(404).json({ status: "error", message: "Pasien tidak ditemukan." });
+    if (!target) return res.status(200).json({ status: "error", message: "Pasien tidak ditemukan." });
 
-    target.statusWaH2 = "Pending";
-    target.statusDokterH2 = "Pending";
-    target.statusWaH1 = "Pending";
-    target.statusDokterH1 = "Pending";
-    target.tglReschedule = newDate || target.tglReschedule;
-    target.statusReschedule = data.customStatus || `Reschedule (${target.tglReschedule})`;
+    if (newDate) {
+      target.statusWaH2 = "Pending";
+      target.statusDokterH2 = "Pending";
+      target.statusWaH1 = "Pending";
+      target.statusDokterH1 = "Pending";
+      target.tglReschedule = newDate;
+      target.statusReschedule = `Reschedule (${newDate})`;
+    } else {
+      target.statusReschedule = data.status || data.customStatus || "Reschedule Diajukan";
+    }
 
     rebuildFastIndexes();
     scheduleBackgroundPersist("DATA_PASIEN");
 
-    return res.json({ status: "success", message: `Pasien ${target.namaPasien} (${target.noRm}) berhasil di-reschedule ke ${target.tglReschedule}.`, data: target });
+    return res.status(200).json({
+      status: "success",
+      message: newDate 
+        ? `Pasien ${target.namaPasien} (${target.noRm}) berhasil di-reschedule ke ${target.tglReschedule}.`
+        : `Pasien ${target.namaPasien} status ditandai sebagai '${target.statusReschedule}'.`,
+      data: target
+    });
   }
 
   // 4. Standarisasi Kolom O via POST
@@ -1537,10 +1470,9 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     });
   }
 
-  // 5. Append New Patients Scraped from Chrome Extension (Batch or Single Object - UNBLOCKED INGESTION)
+  // 5. Append New Patients Scraped from Chrome Extension
   if (action === "add_patients" || action === "append_patient" || Array.isArray(data) || Array.isArray(data.patients) || (data.namaPasien && data.noRm)) {
     const rawList = Array.isArray(data) ? data : (Array.isArray(data.patients) ? data.patients : [data]);
-    // Saring dan buang data dummy agar tidak pernah masuk ke sistem
     const list = sanitizeAndFilterDummy(rawList);
 
     const existingKeys = new Set();
@@ -1572,7 +1504,6 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
       const rmDedupKey = cleanRm ? `${cleanRm}_${tglK}` : "";
       const nameDedupKey = patientName ? `${patientName.toLowerCase()}_${tglK}` : "";
 
-      // Jika pasien sudah ada di tanggal kontrol yang sama persis: UPDATE datanya (jangan halangi)
       let existingRecord = null;
       if (cleanRm) {
         existingRecord = memoryStore.patients.find(p => {
@@ -1595,7 +1526,6 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
       const tglResched = item.tglReschedule ? String(item.tglReschedule).trim() : "-";
 
       if (existingRecord) {
-        // Update informasi terbaru tanpa menolak
         if (cleanHp && cleanHp !== "-") {
           existingRecord.cleanPhone = cleanHp;
           existingRecord.noHp = cleanHp;
@@ -1609,7 +1539,6 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
         if (tglResched && tglResched !== "-") existingRecord.tglReschedule = tglResched;
         updated++;
       } else {
-        // Pasien Baru: Langsung Tambahkan (UNBLOCKED)
         const nextRow = memoryStore.patients.length > 0 ? Math.max(...memoryStore.patients.map(x => x.rowNumber || 0)) + 1 : 2;
 
         const newRecord = {
@@ -1656,7 +1585,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     });
   }
 
-  // 5. Direct Spreadsheet Real-Time Batch Paste Handler
+  // 6. Direct Spreadsheet Real-Time Batch Paste Handler
   if (action === "batch_paste") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const startRow = Math.max(2, parseInt(req.body.startRow) || 2);
@@ -1803,7 +1732,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     }
   }
 
-  // 6. Append Empty Rows up to 1000+ Without Limits
+  // 7. Append Empty Rows up to 1000+ Without Limits
   if (action === "append_empty_rows") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const count = Math.min(1000, Math.max(1, parseInt(req.body.count) || 100));
@@ -1845,7 +1774,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     }
   }
 
-  // 7. Drag-and-Drop Reorder Rows Handler
+  // 8. Drag-and-Drop Reorder Rows Handler
   if (action === "reorder_rows") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const fromIndex = parseInt(req.body.fromIndex, 10);
@@ -1885,7 +1814,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     return res.status(400).json({ status: "error", message: "Indeks reorder tidak valid." });
   }
 
-  // 8. Update or Clear Single Cell
+  // 9. Update or Clear Single Cell
   if (action === "update_cell" || action === "clear_cell") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const row = parseInt(req.body.row, 10);
@@ -1926,7 +1855,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     return res.status(404).json({ status: "error", message: "Sel atau baris tidak ditemukan." });
   }
 
-  // 9. Clear Column Content
+  // 10. Clear Column Content
   if (action === "clear_column") {
     const sheet = String(req.body.sheet || "DATA_PASIEN").toUpperCase();
     const colKey = req.body.colKey;
@@ -1971,7 +1900,7 @@ app.get("/api/data", (req, res) => {
 app.post("/api/crud/patient", async (req, res) => {
   const body = req.body || {};
   if (isDummyPatient(body)) {
-    return res.status(400).json({ status: "error", message: "Data dummy (Pasien Contoh) ditolak oleh sistem keamanan Redis." });
+    return res.status(400).json({ status: "error", message: "Data dummy ditolak oleh sistem keamanan Redis." });
   }
 
   const nextRow = memoryStore.patients.length > 0 ? Math.max(...memoryStore.patients.map(x => x.rowNumber || 0)) + 1 : 2;
@@ -2188,8 +2117,6 @@ app.post("/api/sync/pull", async (req, res) => {
 
 app.post("/api/sync/push", async (req, res) => {
   try {
-    console.log("📤 Memulai sinkronisasi pengiriman data pasien ke Google Spreadsheet (Target 408 Pasien)...");
-
     if (!GAS_URL) {
       return res.status(500).json({ status: "error", message: "GAS_WEBAPP_URL belum dikonfigurasi di server." });
     }
@@ -2202,7 +2129,6 @@ app.post("/api/sync/push", async (req, res) => {
       return res.status(400).json({ status: "error", message: "Tidak ada data pasien di server untuk dikirim." });
     }
 
-    // Ambil data terkini di GAS untuk mengetahui selisih
     let currentGasCount = 0;
     let gasRows = [];
     try {
@@ -2215,9 +2141,6 @@ app.post("/api/sync/push", async (req, res) => {
       console.warn("Notice checking GAS count:", e.message);
     }
 
-    console.log(`📊 Total pasien di server: ${patientsToSend.length}, di Spreadsheet saat ini: ${currentGasCount}`);
-
-    // Jika spreadsheet sudah memiliki semua data pasien yang ada di server
     if (currentGasCount >= patientsToSend.length) {
       return res.json({
         status: "success",
@@ -2226,7 +2149,6 @@ app.post("/api/sync/push", async (req, res) => {
       });
     }
 
-    // Hitung missing patients dengan pencocokan RM & nama
     const gasRmCounts = {};
     const gasNameSet = new Set();
     gasRows.forEach(g => {
@@ -2257,7 +2179,6 @@ app.post("/api/sync/push", async (req, res) => {
       });
     }
 
-    // Siapkan payload dengan invisible space \u200B agar GAS tidak men-skip nama ganda hari ini
     const activeNames = new Set(gasNameSet);
     const payloadItems = missingPatients.map(p => {
       let pName = String(p.namaPasien || "-").trim();
@@ -2289,8 +2210,6 @@ app.post("/api/sync/push", async (req, res) => {
       };
     });
 
-    console.log(`⚙️ Mengirim ${payloadItems.length} pasien ke GAS dalam batch terbagi...`);
-
     const CHUNK_SIZE = 20;
     for (let i = 0; i < payloadItems.length; i += CHUNK_SIZE) {
       const chunk = payloadItems.slice(i, i + CHUNK_SIZE);
@@ -2307,7 +2226,7 @@ app.post("/api/sync/push", async (req, res) => {
 
     return res.json({
       status: "success",
-      message: `Berhasil mengirim ${payloadItems.length} data pasien ke Google Spreadsheet! Target 408 data pasien kini terpenuhi secara utuh.`,
+      message: `Berhasil mengirim ${payloadItems.length} data pasien ke Google Spreadsheet.`,
       pushed: payloadItems.length,
       total: currentGasCount + payloadItems.length
     });
@@ -2319,28 +2238,23 @@ app.post("/api/sync/push", async (req, res) => {
 
 app.post("/api/restore-408", async (req, res) => {
   try {
-    console.log("🚀 Menerima permintaan pemulihan 408 Pasien ke Upstash Redis...");
     let patientList = null;
 
-    // 1. Cek jika dikirim via request body
     if (req.body && (Array.isArray(req.body) || Array.isArray(req.body.patients) || Array.isArray(req.body.data))) {
       patientList = Array.isArray(req.body) ? req.body : (req.body.patients || req.body.data);
     }
 
-    // 2. Cek backup key di Upstash Redis
     if (!patientList || patientList.length === 0) {
       try {
         const fromRedis = await redisGet("DATA_PASIEN_BACKUP_408") || await redisGet("DATA_PASIEN");
         if (Array.isArray(fromRedis) && fromRedis.length >= 400) {
           patientList = fromRedis;
-          console.log(`📦 Mengambil ${patientList.length} data pasien dari backup Redis.`);
         }
       } catch (e) {
         console.warn("Redis backup read notice:", e.message);
       }
     }
 
-    // 3. Cek file lokal di berbagai path candidate
     if (!patientList || patientList.length === 0) {
       const candidatePaths = [
         path.join(process.cwd(), "data", "backup_patients_408.json"),
@@ -2357,7 +2271,6 @@ app.post("/api/restore-408", async (req, res) => {
             const list = Array.isArray(rawData) ? rawData : (rawData.data || rawData.patients || []);
             if (list.length > 0) {
               patientList = list;
-              console.log(`📦 Terbaca ${patientList.length} pasien dari ${cp}`);
               break;
             }
           } catch (e) {
@@ -2367,21 +2280,8 @@ app.post("/api/restore-408", async (req, res) => {
       }
     }
 
-    // 4. Cek Google Apps Script jika masih belum ada
     if (!patientList || patientList.length === 0) {
-      try {
-        const gasCheck = await fetchGasJson(`${GAS_URL}?action=get_all_patient_phones`);
-        if (gasCheck && Array.isArray(gasCheck.data) && gasCheck.data.length > 0) {
-          patientList = gasCheck.data;
-          console.log(`📦 Terbaca ${patientList.length} pasien dari Google Sheets.`);
-        }
-      } catch (e) {
-        console.warn("GAS fallback read notice:", e.message);
-      }
-    }
-
-    if (!patientList || patientList.length === 0) {
-      return res.status(404).json({ status: "error", message: "Data backup 408 pasien tidak ditemukan di Redis, File, maupun Google Sheets." });
+      return res.status(404).json({ status: "error", message: "Data backup 408 pasien tidak ditemukan." });
     }
 
     const normalizedPatients = patientList.map((p, idx) => ({
@@ -2410,12 +2310,6 @@ app.post("/api/restore-408", async (req, res) => {
 
     await redisSet("DATA_PASIEN", normalizedPatients);
     await redisSet("DATA_PASIEN_BACKUP_408", normalizedPatients);
-    await redisSet("DATA_PASIEN_SNAPSHOT", {
-      total: normalizedPatients.length,
-      restoredAt: new Date().toISOString(),
-      status: "healthy_paripurna",
-      version: "v2.4_408_restored"
-    });
     memoryStore.patients = normalizedPatients;
     rebuildFastIndexes();
     return res.json({
@@ -2458,7 +2352,6 @@ app.post("/login", (req, res) => {
   const envUser = (process.env.ADMIN_USER || "").trim();
   const envPass = (process.env.ADMIN_PASS || "").trim();
 
-  // Strictly authenticate against environment variables (Vercel / .env)
   if (envUser && envPass && cleanInputUser === envUser && cleanInputPass === envPass) {
     if (!AUTH_TOKEN) {
       return res.redirect("/login?error=ADMIN_AUTH_TOKEN belum dikonfigurasi di Environment Variable (Vercel/.env)!");
@@ -2523,11 +2416,8 @@ app.get("/admin", requireAdminAuth, (req, res) => {
   });
 });
 
-// API Admin Analytics JSON Endpoint
 app.get("/api/admin/analytics", requireAdminAuth, async (req, res) => {
   const analytics = calculateAnalytics();
-
-  // Generate 7-day API Request Traffic Data for Chart.js
   const days = [];
   const getTraffic = [];
   const postTraffic = [];
@@ -2560,12 +2450,11 @@ app.get("/api/admin/analytics", requireAdminAuth, async (req, res) => {
 });
 
 // ==========================================
-// 8. UI PAGES (INDEX & RESTSHEET VIEWS)
+// 8. UI PAGES
 // ==========================================
 
 app.get("/", (req, res, next) => {
   if (req.query.action) {
-    // Universal support: if client calls /?action=... like GAS, handle via API handler!
     req.url = "/api" + (req.url.includes("?") ? req.url.substring(req.url.indexOf("?")) : "");
     return app._router.handle(req, res, next);
   }
@@ -2587,7 +2476,7 @@ app.get("/restsheet", (req, res) => {
 });
 
 // ==========================================
-// 9. SMART PORT LISTENER (AUTO-FALLBACK ON EADDRINUSE)
+// 9. SMART PORT LISTENER
 // ==========================================
 
 function startListeningWithFallback(targetPort, maxAttempts = 5) {
@@ -2599,11 +2488,9 @@ function startListeningWithFallback(targetPort, maxAttempts = 5) {
       const attemptsMade = targetPort - DEFAULT_PORT;
       if (attemptsMade < maxAttempts) {
         const nextPort = targetPort + 1;
-        console.log(`🔄 Automatically attempting fallback port ${nextPort}...`);
         startListeningWithFallback(nextPort, maxAttempts);
       } else {
         console.error(`❌ Could not bind any port between ${DEFAULT_PORT} and ${targetPort}.`);
-        console.error(`💡 Tip: Run 'kill -9 $(lsof -t -i :${DEFAULT_PORT})' to free port ${DEFAULT_PORT}.`);
       }
     } else {
       console.error("Server listener error:", err);
@@ -2617,7 +2504,7 @@ function startListeningWithFallback(targetPort, maxAttempts = 5) {
     console.log(`🌐 Web Portal URL: http://localhost:${targetPort}`);
     console.log(`📊 Admin Dashboard: http://localhost:${targetPort}/admin`);
     console.log(`📚 RestSheet API Hub: http://localhost:${targetPort}/restsheet`);
-    console.log(`💾 Layer 1 (Upstash Redis): ${UPSTASH_URL ? "ACTIVE (Ultra-Resilient)" : "MEMORY FALLBACK"}`);
+    console.log(`💾 Layer 1 (Upstash Redis): ${UPSTASH_URL ? "ACTIVE" : "MEMORY FALLBACK"}`);
     console.log(`☁️ Layer 2 (Google Sheets): ${GAS_URL ? "CONFIGURED" : "NONE"}`);
     console.log(`⚡ In-Memory Indexing: ACTIVE (${memoryStore.patients.length} patients indexed)`);
     console.log(`🏥 Health Check: http://localhost:${targetPort}/api/health`);
