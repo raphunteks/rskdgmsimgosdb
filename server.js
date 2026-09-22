@@ -659,6 +659,37 @@ function parseRowRanges(input) {
   return Array.from(rows).sort((a, b) => a - b);
 }
 
+// MESIN PENCARIAN PASIEN MULTI-KUNCI (ULTRA RESILIENT)
+function findPatientTarget({ row, noRm, noHp, noLid, noSender, query }) {
+  let target = null;
+  const rowNum = parseInt(row, 10);
+  if (rowNum && rowNum > 1) {
+    target = fastIndex.byRow.get(rowNum) || memoryStore.patients.find(p => p.rowNumber === rowNum);
+    if (target) return target;
+  }
+
+  const cleanRm = String(noRm || query || "").trim().toLowerCase().replace(/[^\w]/g, "");
+  if (cleanRm) {
+    target = fastIndex.byRm.get(cleanRm) || memoryStore.patients.find(p => String(p.noRm || "").toLowerCase().replace(/[^\w]/g, "") === cleanRm);
+    if (target) return target;
+  }
+
+  const cleanHp = cleanPhoneDigits(noHp || query);
+  if (cleanHp) {
+    const intl = formatInternationalPhone(cleanHp);
+    target = fastIndex.byPhone.get(intl) || memoryStore.patients.find(p => cleanPhoneDigits(p.noHp) === cleanHp || cleanPhoneDigits(p.cleanPhone) === cleanHp);
+    if (target) return target;
+  }
+
+  const cleanLid = cleanLidDigits(noLid || noSender || query);
+  if (cleanLid && cleanLid.length >= 10) {
+    target = fastIndex.byLid.get(cleanLid) || memoryStore.patients.find(p => cleanLidDigits(p.noLid) === cleanLid || cleanLidDigits(p.noSender) === cleanLid);
+    if (target) return target;
+  }
+
+  return null;
+}
+
 function compileMessage(templateStr, patient, config) {
   if (!templateStr) return "";
 
@@ -735,7 +766,7 @@ function applySmartStatusUpdate(target, params) {
   const cleanLidVal = params.cleanLidVal;
 
   if (updateType === "lid_only") {
-    if (cleanLidVal) target.noLid = cleanLidVal;
+    if (cleanLidVal && cleanLidVal.length >= 10) target.noLid = cleanLidVal;
     if (cleanSenderPhone) target.noSender = cleanSenderPhone;
     rebuildFastIndexes();
     scheduleBackgroundPersist("DATA_PASIEN");
@@ -809,7 +840,7 @@ function applySmartStatusUpdate(target, params) {
   } else if (!target.noSender || target.noSender === "-") {
     target.noSender = formatInternationalPhone(target.noHp) || "-";
   }
-  if (cleanLidVal) {
+  if (cleanLidVal && cleanLidVal.length >= 10) {
     target.noLid = cleanLidVal;
   }
 
@@ -1113,7 +1144,7 @@ app.get(["/api", "/api/"], async (req, res) => {
 
     const cleanRawDigits = qRaw.replace(/@.*/, "").replace(/\D/g, "");
     const explicitPhone = paramPhone ? cleanPhoneDigits(paramPhone) : (cleanRawDigits && cleanRawDigits.length <= 15 ? cleanRawDigits : "");
-    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (cleanRawDigits && cleanRawDigits.length >= 10 ? cleanLidDigits(cleanRawDigits) : "");
+    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (cleanRawDigits && cleanRawDigits.length >= 10 ? cleanRawDigits : "");
     const q = qRaw.toLowerCase().replace(/@.*/, "").trim();
 
     if (!q && !explicitPhone && !explicitLid) {
@@ -1183,25 +1214,19 @@ app.get(["/api", "/api/"], async (req, res) => {
 
   // 9. RESCHEDULE PATIENT (MENDUKUNG ALUR DUA TAHAP: 'RESCHEDULE DIAJUKAN' & PENETAPAN TANGGAL)
   if (action === "reschedule_patient") {
-    const noRmTarget = String(req.query.noRm || req.query.norm || "").trim().toLowerCase();
-    const noHpTarget = cleanPhoneDigits(req.query.noHp || req.query.phone);
-    const noSenderTarget = cleanLidDigits(req.query.noSender || req.query.no_lid);
-    const rowTarget = req.query.row ? parseInt(req.query.row, 10) : null;
-
     const rawDateInput = String(req.query.newDate || req.query.newdate || "").trim();
     const dateMatch = rawDateInput.match(/\b(\d{4}-\d{2}-\d{2})\b/);
     const newDate = dateMatch ? dateMatch[1] : "";
     const rawStatus = String(req.query.status || req.query.customStatus || "").trim();
 
-    if (!noRmTarget && !rowTarget && !noHpTarget && !noSenderTarget) {
-      return res.status(200).json({ status: "error", message: "Identitas pasien (No RM/No HP/LID) wajib disertakan." });
-    }
-
-    let target = null;
-    if (rowTarget && rowTarget > 1) target = fastIndex.byRow.get(rowTarget);
-    if (!target && noRmTarget) target = fastIndex.byRm.get(noRmTarget.replace(/[^\w]/g, ""));
-    if (!target && noHpTarget) target = fastIndex.byPhone.get(formatInternationalPhone(noHpTarget));
-    if (!target && noSenderTarget) target = fastIndex.byLid.get(noSenderTarget);
+    const target = findPatientTarget({
+      row: req.query.row,
+      noRm: req.query.noRm || req.query.norm,
+      noHp: req.query.noHp || req.query.phone,
+      noLid: req.query.no_lid || req.query.lid,
+      noSender: req.query.noSender,
+      query: req.query.query
+    });
 
     if (!target) {
       return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan untuk di-reschedule." });
@@ -1226,7 +1251,7 @@ app.get(["/api", "/api/"], async (req, res) => {
 
     if (cleanPhoneResched) target.noSender = cleanPhoneResched;
     else if (!target.noSender || target.noSender === "-") target.noSender = formatInternationalPhone(target.noHp) || "-";
-    if (cleanLidResched) target.noLid = cleanLidResched;
+    if (cleanLidResched && cleanLidResched.length >= 10) target.noLid = cleanLidResched;
 
     rebuildFastIndexes();
     scheduleBackgroundPersist("DATA_PASIEN");
@@ -1245,27 +1270,19 @@ app.get(["/api", "/api/"], async (req, res) => {
 
   // 10. UPDATE STATUS (VIA GET - SMART STATUS ENGINE)
   if (action === "update_status") {
-    const rowParam = req.query.row ? parseInt(req.query.row, 10) : null;
-    const noRmParam = String(req.query.noRm || "").trim().toLowerCase();
-    const noHpParam = cleanPhoneDigits(req.query.noHp || req.query.phone);
     const rawSenderParam = req.query.noSender || req.query.phone || req.query.noHp;
     const rawLidParam = req.query.no_lid || req.query.lid;
     const cleanSenderPhone = formatInternationalPhone(rawSenderParam);
     const cleanLidVal = cleanLidDigits(rawLidParam);
 
-    let target = null;
-    if (rowParam && rowParam > 1) {
-      target = fastIndex.byRow.get(rowParam) || memoryStore.patients.find(p => p.rowNumber === rowParam);
-    }
-    if (!target && noRmParam) {
-      target = fastIndex.byRm.get(noRmParam.replace(/[^\w]/g, ""));
-    }
-    if (!target && noHpParam) {
-      target = fastIndex.byPhone.get(formatInternationalPhone(noHpParam));
-    }
-    if (!target && (cleanLidVal || rawSenderParam)) {
-      target = fastIndex.byLid.get(cleanLidVal || cleanLidDigits(rawSenderParam));
-    }
+    const target = findPatientTarget({
+      row: req.query.row,
+      noRm: req.query.noRm || req.query.norm,
+      noHp: req.query.noHp || req.query.phone,
+      noLid: rawLidParam,
+      noSender: rawSenderParam,
+      query: req.query.query
+    });
 
     if (!target) {
       return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan untuk update status." });
@@ -1385,7 +1402,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
       if (!target && cleanPhone) target = fastIndex.byPhone.get(cleanPhone);
 
       if (target) {
-        if (newLid) target.noLid = newLid;
+        if (newLid && newLid.length >= 10) target.noLid = newLid;
         if (cleanPhone) target.noSender = cleanPhone;
         count++;
       }
@@ -1402,25 +1419,17 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
 
   // 2. Update Status via POST
   if (action === "update_status") {
-    const rowParam = data.row || req.query.row ? parseInt(data.row || req.query.row, 10) : null;
-    const noRmParam = String(data.noRm || req.query.noRm || "").trim().toLowerCase();
-    const cleanPhoneParam = cleanPhoneDigits(data.noHp || data.phone || req.query.noHp);
     const cleanSenderPhone = formatInternationalPhone(data.noSender || data.phone || data.noHp || req.query.noSender);
     const cleanLidVal = cleanLidDigits(data.no_lid || data.lid || req.query.no_lid);
 
-    let target = null;
-    if (rowParam && rowParam > 1) {
-      target = fastIndex.byRow.get(rowParam) || memoryStore.patients.find(p => p.rowNumber === rowParam);
-    }
-    if (!target && noRmParam) {
-      target = fastIndex.byRm.get(noRmParam.replace(/[^\w]/g, ""));
-    }
-    if (!target && cleanPhoneParam) {
-      target = fastIndex.byPhone.get(formatInternationalPhone(cleanPhoneParam));
-    }
-    if (!target && (cleanLidVal || cleanSenderPhone)) {
-      target = fastIndex.byLid.get(cleanLidVal || cleanLidDigits(cleanSenderPhone));
-    }
+    const target = findPatientTarget({
+      row: data.row || req.query.row,
+      noRm: data.noRm || req.query.noRm || data.norm,
+      noHp: data.noHp || data.phone || req.query.noHp,
+      noLid: data.no_lid || data.lid || req.query.no_lid,
+      noSender: data.noSender || req.query.noSender,
+      query: data.query || req.query.query
+    });
 
     if (!target) return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan." });
 
@@ -1443,21 +1452,19 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
 
   // 3. Reschedule Patient via POST (Lengkap dengan Pencarian Cerdas & Dua Tahap)
   if (action === "reschedule_patient") {
-    const noRmTarget = String(data.noRm || data.norm || req.query.noRm || "").trim().toLowerCase();
-    const noHpTarget = cleanPhoneDigits(data.noHp || data.phone || req.query.noHp);
-    const noSenderTarget = cleanLidDigits(data.noSender || data.no_lid || req.query.no_lid);
-    const rowTarget = data.row || req.query.row ? parseInt(data.row || req.query.row, 10) : null;
-
     const rawDateInput = String(data.newDate || data.newdate || req.query.newDate || "").trim();
     const dateMatch = rawDateInput.match(/\b(\d{4}-\d{2}-\d{2})\b/);
     const newDate = dateMatch ? dateMatch[1] : "";
     const rawStatus = String(data.status || data.customStatus || req.query.status || "").trim();
 
-    let target = null;
-    if (rowTarget && rowTarget > 1) target = fastIndex.byRow.get(rowTarget);
-    if (!target && noRmTarget) target = fastIndex.byRm.get(noRmTarget.replace(/[^\w]/g, ""));
-    if (!target && noHpTarget) target = fastIndex.byPhone.get(formatInternationalPhone(noHpTarget));
-    if (!target && noSenderTarget) target = fastIndex.byLid.get(noSenderTarget);
+    const target = findPatientTarget({
+      row: data.row || req.query.row,
+      noRm: data.noRm || data.norm || req.query.noRm,
+      noHp: data.noHp || data.phone || req.query.noHp,
+      noLid: data.noSender || data.no_lid || req.query.no_lid,
+      noSender: data.noSender,
+      query: data.query || req.query.query
+    });
 
     if (!target) return res.status(200).json({ status: "error", message: "Data pasien tidak ditemukan." });
 
@@ -1477,7 +1484,7 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
 
     if (cleanPhoneResched) target.noSender = cleanPhoneResched;
     else if (!target.noSender || target.noSender === "-") target.noSender = formatInternationalPhone(target.noHp) || "-";
-    if (cleanLidResched) target.noLid = cleanLidResched;
+    if (cleanLidResched && cleanLidResched.length >= 10) target.noLid = cleanLidResched;
 
     rebuildFastIndexes();
     scheduleBackgroundPersist("DATA_PASIEN");
@@ -1641,12 +1648,10 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
         if (cleanHp && cleanHp !== "-") {
           existingRecord.cleanPhone = cleanHp;
           existingRecord.noHp = cleanHp;
+          existingRecord.noSender = cleanHp;
         }
         if (cleanLid !== "-") {
           existingRecord.noLid = cleanLid;
-        }
-        if (cleanHp && cleanHp !== "-") {
-          existingRecord.noSender = cleanHp;
         }
         if (statusRujukan) existingRecord.statusRujukan = statusRujukan;
         if (statusReschedule && statusReschedule !== "-") existingRecord.statusReschedule = statusReschedule;
