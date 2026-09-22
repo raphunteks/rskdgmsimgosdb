@@ -491,10 +491,8 @@ function scheduleBackgroundPersist(sheetName) {
 
 function isDummyPatient(p) {
   if (!p) return false;
-  const name = String(p.namaPasien || p.nama || "").toLowerCase();
-  const rm = String(p.noRm || p.norm || "").toLowerCase();
-  if (name.includes("pasien contoh") || name.includes("contoh pasien") || name.includes("dummy")) return true;
-  if (/^00\.0\d\.12\.34$/.test(rm)) return true;
+  const name = String(p.namaPasien || p.nama || "").toLowerCase().trim();
+  if (name.includes("pasien contoh") || name.includes("contoh pasien") || name === "dummy" || name === "test dummy") return true;
   return false;
 }
 
