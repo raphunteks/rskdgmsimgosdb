@@ -7,6 +7,47 @@
   <link rel="icon" type="image/png" href="/img/axalogo.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .response-mode-toggle {
+      display: inline-flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .btn-mode-toggle {
+      background: transparent;
+      border: none;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+    .btn-mode-toggle:hover {
+      color: var(--text-main);
+    }
+    .btn-mode-toggle.active {
+      background: var(--primary);
+      color: #fff;
+    }
+    .badge-docs {
+      background: rgba(14, 165, 233, 0.15);
+      color: #0284c7;
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
 </head>
 <body>
 
@@ -17,7 +58,7 @@
       <div class="brand-title-group">
         <h1>
           <span>RestSheet API Hub</span>
-          <span class="brand-badge">v2.4 Ultra-Fast</span>
+          <span class="brand-badge">v2.5 Ultra-Fast Dynamic</span>
         </h1>
         <div class="brand-menu">
           <a href="/" class="menu-item" style="color: var(--accent); font-weight: 600;">
@@ -44,13 +85,6 @@
         </select>
       </div>
 
-      <div class="status-indicator-group">
-        <div class="status-pill redis-pill">
-          <span class="status-dot online"></span>
-          <span>Redis L1</span>
-          <span class="status-latency">&lt;1ms</span>
-        </div>
-      </div>
       <button class="btn btn-secondary btn-sm" onclick="copyBaseUrl()">
         <i class="fas fa-copy"></i> <span class="d-none-mobile">Salin Base URL</span>
       </button>
@@ -60,96 +94,44 @@
   <!-- MAIN RESTSHEET LAYOUT -->
   <div class="restsheet-layout">
     
-    <!-- SIDEBAR LIST OF ENDPOINTS -->
+    <!-- SIDEBAR LIST OF ENDPOINTS (100% DINAMIS BERBASIS SERVER.JS REGISTRY) -->
     <aside class="api-sidebar" id="api-sidebar">
       <div class="api-sidebar-header">
         <span>DAFTAR ENDPOINT REST API</span>
         <button class="modal-close btn-toggle-endpoints" onclick="toggleSidebar()">&times;</button>
       </div>
+
+      <!-- Quick Search Filter -->
+      <div style="padding: 8px 12px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02);">
+        <input type="text" id="endpoint-search-input" placeholder="🔍 Cari endpoint / aksi..." style="width: 100%; padding: 6px 10px; font-size: 11px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" oninput="filterEndpoints(this.value)">
+      </div>
+
       <div class="api-endpoints-nav">
-        
-        <div class="endpoint-group-title">Sistem & Diagnostik</div>
-        <div class="endpoint-item active" onclick="selectEndpoint('ping')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=ping</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('health')">
-          <span class="method-badge method-get">GET</span>
-          <span>/api/health (Health Check)</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_settings')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_settings</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_templates')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_templates</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_active_prompt')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_active_prompt</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('update_setting')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=update_setting</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('update_template')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=update_template</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('fix_sender_columns')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=fix_sender_columns</span>
-        </div>
+        <% 
+          const epList = (typeof apiRegistry !== "undefined" && Array.isArray(apiRegistry)) ? apiRegistry : [];
+          const categories = {};
+          epList.forEach(ep => {
+            const cat = ep.category || "General";
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push(ep);
+          });
+        %>
 
-        <div class="endpoint-group-title">Ekstensi SIMGOS & Pasien</div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_today_patients')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_today_patients</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_all_patient_phones')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_all_patient_phones</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_unlinked_patients')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_unlinked_patients</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('add_patients')">
-          <span class="method-badge method-post">POST</span>
-          <span>add_patients (Scraper SIMGOS)</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('batch_update_lids')">
-          <span class="method-badge method-post">POST</span>
-          <span>batch_update_lids</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('batch_paste')">
-          <span class="method-badge method-post">POST</span>
-          <span>batch_paste (Sheet Matrix)</span>
-        </div>
+        <% Object.keys(categories).forEach(cat => { %>
+          <div class="endpoint-group-title"><%= cat %></div>
+          <% categories[cat].forEach(ep => { %>
+            <div class="endpoint-item <%= ep.id === 'ping' ? 'active' : '' %>" data-id="<%= ep.id %>" onclick="selectEndpoint('<%= ep.id %>')">
+              <span class="method-badge method-<%= ep.method.toLowerCase() %>"><%= ep.method %></span>
+              <span><%= ep.label || ep.url %></span>
+            </div>
+          <% }); %>
+        <% }); %>
 
-        <div class="endpoint-group-title">WhatsApp Bot Follow-Up Blast</div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_followup')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_followup</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('search_patient')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=search_patient</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('reschedule_patient')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=reschedule_patient</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('update_status')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=update_status</span>
-        </div>
-        <div class="endpoint-item" onclick="selectEndpoint('get_summary_stats')">
-          <span class="method-badge method-get">GET</span>
-          <span>?action=get_summary_stats</span>
-        </div>
-
+        <% if (epList.length === 0) { %>
+          <div style="padding: 16px; color: var(--text-muted); font-size: 12px; text-align: center;">
+            Memuat daftar endpoint dinamis...
+          </div>
+        <% } %>
       </div>
     </aside>
 
@@ -181,34 +163,43 @@
         <!-- POST BODY SECTION (HIDDEN FOR GET) -->
         <div id="ep-post-body-container" style="display: none; margin-top: 16px;">
           <h4 style="font-size: 12px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px;">Request Body (JSON)</h4>
-          <textarea id="ep-post-body" class="params-input" rows="6" style="font-family: var(--font-mono);"></textarea>
+          <textarea id="ep-post-body" class="params-input" rows="7" style="font-family: var(--font-mono); font-size: 12px;" oninput="updateCodeSnippet()"></textarea>
         </div>
       </div>
 
-      <!-- RESPONSE CARD -->
+      <!-- RESPONSE CARD (DUAL-MODE: CONTOH DOCS VS LIVE SERVER) -->
       <div class="response-pane">
-        <div class="response-header">
-          <div>
-            <span style="font-weight: 700; color: var(--text-main);">RESPON SERVER:</span>
-            <span id="res-status-badge" class="badge badge-success" style="margin-left: 8px;">200 OK</span>
-            <span id="res-time" style="color: var(--accent); margin-left: 8px; font-family: var(--font-mono);"><i class="fas fa-bolt"></i> &lt;1ms</span>
+        <div class="response-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-weight: 700; color: var(--text-main); font-size: 12px;">RESPON SERVER:</span>
+            
+            <!-- Dual-Mode Switcher Tabs -->
+            <div class="response-mode-toggle">
+              <button type="button" class="btn-mode-toggle active" id="btn-mode-sample" onclick="setResponseViewMode('sample')">
+                <i class="fas fa-file-code"></i> Contoh Docs
+              </button>
+              <button type="button" class="btn-mode-toggle" id="btn-mode-live" onclick="setResponseViewMode('live')">
+                <i class="fas fa-bolt"></i> Respon Live
+              </button>
+            </div>
+
+            <span id="res-status-badge" class="badge-docs">Contoh Dokumentasi</span>
+            <span id="res-time" style="color: var(--accent); font-family: var(--font-mono); font-size: 11px;"><i class="fas fa-info-circle"></i> Schema</span>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="copyResponseJson()">
             <i class="fas fa-copy"></i> Salin JSON
           </button>
         </div>
-        <pre class="json-viewer" id="res-json-output">// Tekan "Kirim Request" untuk menguji endpoint secara langsung...</pre>
+        <pre class="json-viewer" id="res-json-output">// Memuat contoh respon dokumentasi...</pre>
       </div>
 
       <!-- INTEGRATION SNIPPETS -->
       <div class="endpoint-card">
         <h4 style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 8px;">
-          <i class="fas fa-code"></i> Potongan Kode Integrasi (WhatsApp Bot / Extension)
+          <i class="fas fa-code"></i> Potongan Kode Integrasi (WhatsApp Bot / Extension / Node.js)
         </h4>
-        <div class="code-snippet-box" id="ep-code-snippet">
-// Contoh pemanggilan dari messageHandlerV8(RSKDGM).js:
-const res = await fetch("/api?action=ping").then(r => r.json());
-console.log(res);
+        <div class="code-snippet-box" id="ep-code-snippet" style="white-space: pre-wrap; word-break: break-all; font-family: var(--font-mono); font-size: 11px;">
+// Memuat potongan kode...
         </div>
       </div>
 
@@ -217,191 +208,88 @@ console.log(res);
 
   <div class="toast-container" id="toast-container"></div>
 
+  <!-- DYNAMIC API REGISTRY DATA ISLAND (ZERO LINT ERROR DI IDE & RUNTIME INSTAN) -->
+  <script type="application/json" id="api-registry-data">
+<%- JSON.stringify((typeof apiRegistry !== 'undefined' && Array.isArray(apiRegistry)) ? apiRegistry.reduce((acc, ep) => { acc[ep.id] = ep; return acc; }, {}) : {}) %>
+  </script>
+
   <script>
-    // Endpoints Catalog definition
-    const ENDPOINTS = {
-      ping: {
-        method: "GET",
-        url: "/api?action=ping",
-        desc: "Mengecek status kesehatan server portal, konektivitas Upstash Redis Layer 1, dan status sinkronisasi.",
-        params: [{ name: "action", default: "ping", desc: "Aksi ping" }]
-      },
-      health: {
-        method: "GET",
-        url: "/api/health",
-        desc: "Endpoint diagnostik real-time untuk memonitor uptime, latensi RTT Redis (ms), dan jumlah pasien terindeks.",
-        params: []
-      },
-      get_settings: {
-        method: "GET",
-        url: "/api?action=get_settings",
-        desc: "Mengambil konfigurasi sistem lengkap (API Keys Gemini/Groq, dokter DPJP, delay chat, h_days, dan template pesan) identik dengan doGet GAS.",
-        params: [{ name: "action", default: "get_settings", desc: "Aksi get_settings" }]
-      },
-      get_templates: {
-        method: "GET",
-        url: "/api?action=get_templates",
-        desc: "Mengambil daftar seluruh template pesan WhatsApp aktif (WA_PX_H2, WA_PX_H1, WA_LAPORAN_DOKTER_H2, dll.).",
-        params: [{ name: "action", default: "get_templates", desc: "Aksi get_templates" }]
-      },
-      get_active_prompt: {
-        method: "GET",
-        url: "/api?action=get_active_prompt",
-        desc: "Mengambil system prompt AI RSKDGM aktif yang berregister birokratis formal serta pakar kedokteran gigi.",
-        params: [{ name: "action", default: "get_active_prompt", desc: "Aksi get_active_prompt" }]
-      },
-      update_setting: {
-        method: "GET",
-        url: "/api?action=update_setting",
-        desc: "Mengupdate parameter setting (contoh: DELAY_CHAT, H_HARI_FOLLOWUP, atau API Key) langsung ke database.",
-        params: [
-          { name: "action", default: "update_setting", desc: "Aksi update_setting" },
-          { name: "param", default: "DELAY_CHAT", desc: "Nama parameter setting" },
-          { name: "value", default: "60", desc: "Nilai parameter baru" }
-        ]
-      },
-      update_template: {
-        method: "GET",
-        url: "/api?action=update_template",
-        desc: "Mengupdate teks template pesan WhatsApp secara dinamis.",
-        params: [
-          { name: "action", default: "update_template", desc: "Aksi update_template" },
-          { name: "code", default: "WA_PX_H2", desc: "Kode template pesan" },
-          { name: "text", default: "Halo {NAMA_PASIEN}, jadwal kontrol Anda: {TGL_KONTROL}", desc: "Isi template pesan baru" }
-        ]
-      },
-      get_today_patients: {
-        method: "GET",
-        url: "/api?action=get_today_patients",
-        desc: "Digunakan ekstensi Chrome SIMGOS untuk pre-check pasien yang sudah terdaftar hari ini guna menghindari scraping duplikat.",
-        params: [{ name: "action", default: "get_today_patients", desc: "Aksi get_today_patients" }]
-      },
-      get_all_patient_phones: {
-        method: "GET",
-        url: "/api?action=get_all_patient_phones",
-        desc: "Mengambil seluruh data pasien aktif beserta no HP, nomor LID WhatsApp, dan status rujukan untuk sinkronisasi bot.",
-        params: [{ name: "action", default: "get_all_patient_phones", desc: "Aksi get_all_patient_phones" }]
-      },
-      get_unlinked_patients: {
-        method: "GET",
-        url: "/api?action=get_unlinked_patients",
-        desc: "Mengambil pasien yang belum memiliki Nomor LID (Kolom 18 / R masih kosong atau belum link).",
-        params: [{ name: "action", default: "get_unlinked_patients", desc: "Aksi get_unlinked_patients" }]
-      },
-      batch_update_lids: {
-        method: "POST",
-        url: "/api",
-        desc: "Memperbarui nomor LID dan No Sender secara massal hasil tangkapan bot WhatsApp Baileys.",
-        body: JSON.stringify({
-          action: "batch_update_lids",
-          updates: [
-            { rowNumber: 2, noRm: "00.06.32.89", noLid: "110621815218280", senderPhone: "6285394683522" }
-          ]
-        }, null, 2)
-      },
-      get_followup: {
-        method: "GET",
-        url: "/api?action=get_followup",
-        desc: "Mengambil daftar pasien blast follow-up otomatis kontrol gigi H-2 atau H-1 dengan delay chat dan kontak DPJP.",
-        params: [
-          { name: "action", default: "get_followup", desc: "Aksi get_followup" },
-          { name: "mode", default: "h2", desc: "Mode followup (h2 atau h1)" },
-          { name: "tgl", default: "auto", desc: "Tanggal target kontrol (auto atau YYYY-MM-DD)" },
-          { name: "preview", default: "false", desc: "Preview data meski sudah terkirim (true/false)" }
-        ]
-      },
-      search_patient: {
-        method: "GET",
-        url: "/api?action=search_patient",
-        desc: "Mencari data pasien terverifikasi secara instan (<0.1ms) via In-Memory Hash Index berdasarkan RM, Nama, WA, atau LID.",
-        params: [
-          { name: "action", default: "search_patient", desc: "Aksi search_patient" },
-          { name: "query", default: "ILDHAYANI", desc: "Nama atau No RM pasien" },
-          { name: "phone", default: "", desc: "No HP Pasien (Opsional)" },
-          { name: "lid", default: "", desc: "No LID WhatsApp (Opsional)" }
-        ]
-      },
-      reschedule_patient: {
-        method: "GET",
-        url: "/api?action=reschedule_patient",
-        desc: "Menjadwalkan ulang kontrol pasien ke tanggal reschedule baru di Kolom 19 (S) dan status reschedule di Kolom 16 (P).",
-        params: [
-          { name: "action", default: "reschedule_patient", desc: "Aksi reschedule_patient" },
-          { name: "noRm", default: "00.06.32.89", desc: "Nomor RM Pasien" },
-          { name: "newDate", default: "2026-10-05", desc: "Tanggal kontrol baru (YYYY-MM-DD)" },
-          { name: "no_lid", default: "", desc: "Nomor LID WhatsApp (Opsional)" }
-        ]
-      },
-      update_status: {
-        method: "GET",
-        url: "/api?action=update_status",
-        desc: "Mencatat status pengiriman blast WA pasien atau dokter secara real-time. Mendukung mode (h1/h2) dan type (pasien, dokter, both, lid_only, reschedule).",
-        params: [
-          { name: "action", default: "update_status", desc: "Aksi update_status" },
-          { name: "row", default: "2", desc: "Nomor Baris Pasien di Database (Opsional jika kirim noRm/phone)" },
-          { name: "noRm", default: "", desc: "Nomor RM Pasien (Opsional jika ada row)" },
-          { name: "mode", default: "h2", desc: "Mode kontrol (h2 atau h1)" },
-          { name: "type", default: "both", desc: "Target status (both, pasien, dokter, lid_only, reschedule)" },
-          { name: "status", default: "Terkirim", desc: "Nilai status pengiriman WA pasien" },
-          { name: "doctor_status", default: "Terkirim", desc: "Nilai status pengiriman dokter (jika type=both)" },
-          { name: "no_lid", default: "", desc: "No LID WhatsApp untuk auto-bind Kolom 18 (Opsional)" }
-        ]
-      },
-      fix_sender_columns: {
-        method: "GET",
-        url: "/api?action=fix_sender_columns",
-        desc: "Standarisasi Kolom 15 (No Sender) menjadi No WA Asli format internasional (628xxx) dari Kolom 6 jika berisi LID atau belum valid.",
-        params: [{ name: "action", default: "fix_sender_columns", desc: "Aksi standarisasi kolom sender" }]
-      },
-      add_patients: {
-        method: "POST",
-        url: "/api",
-        desc: "Menerima data pasien baru hasil scraping tabel SIMGOS v2 (19 Kolom Lengkap) dari Ekstensi Chrome dengan proteksi anti-duplikasi hari ini (WITA).",
-        body: JSON.stringify({
-          action: "add_patients",
-          patients: [
-            {
-              namaPasien: "PASIEN UJI COBA SIMGOS",
-              noRm: "00.12.34.56",
-              tglMasuk: "2026-09-15",
-              tglKontrol: "2026-09-17",
-              noHp: "081234567890",
-              tempatTglLahir: "Makassar, 10-05-1992",
-              umur: "34",
-              agama: "Islam",
-              jenisKelamin: "P",
-              statusRujukan: "Rujukan Aktif"
-            }
-          ]
-        }, null, 2)
-      },
-      batch_paste: {
-        method: "POST",
-        url: "/api",
-        desc: "Menempelkan (paste) data matrix baris dan kolom secara langsung ke database portal (DATA_PASIEN, SETTING, CUSTOM_FORMAT, atau CUSTOM_PROMPT).",
-        body: JSON.stringify({
-          action: "batch_paste",
-          sheet: "DATA_PASIEN",
-          startRow: 2,
-          startCol: 1,
-          matrix: [
-            ["2026-09-15 10:00:00", "00.99.88.77", "PASIEN PASTE CONTOH", "2026-09-15", "2026-09-20", "6281122334455", "Makassar", "30", "Islam", "L", "Pending", "Pending", "Pending", "Pending", "6281122334455", "-", "Rujukan Aktif", "-", "-"]
-          ]
-        }, null, 2)
-      },
-      get_summary_stats: {
-        method: "GET",
-        url: "/api?action=get_summary_stats",
-        desc: "Mengambil statistik total pasien, pasien kontrol hari ini, reschedule, rujukan habis, dan yang belum terhubung LID.",
-        params: [{ name: "action", default: "get_summary_stats", desc: "Aksi get_summary_stats" }]
+    // Endpoints Catalog definition (DINAMIS 100% INJECTED DARI DATA ISLAND)
+    const ENDPOINTS = (() => {
+      try {
+        const el = document.getElementById("api-registry-data");
+        return el ? JSON.parse(el.textContent || "{}") : {};
+      } catch (e) {
+        console.error("Gagal parse API registry:", e);
+        return {};
       }
-    };
+    })();
 
     let activeKey = "ping";
+    let currentLiveResponse = null;
+    let currentViewMode = "sample"; // 'sample' (Contoh Docs) atau 'live' (Hasil Request)
 
     function toggleSidebar() {
       const sb = document.getElementById("api-sidebar");
       if (sb) sb.classList.toggle("open");
+    }
+
+    function filterEndpoints(query) {
+      const q = (query || "").trim().toLowerCase();
+      document.querySelectorAll(".endpoint-item").forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(q) ? "flex" : "none";
+      });
+      // Sembunyikan header kategori jika semua child-nya tersembunyi
+      document.querySelectorAll(".endpoint-group-title").forEach(title => {
+        let sibling = title.nextElementSibling;
+        let hasVisible = false;
+        while (sibling && !sibling.classList.contains("endpoint-group-title")) {
+          if (sibling.style.display !== "none") {
+            hasVisible = true;
+            break;
+          }
+          sibling = sibling.nextElementSibling;
+        }
+        title.style.display = hasVisible ? "block" : "none";
+      });
+    }
+
+    function setResponseViewMode(mode) {
+      currentViewMode = mode;
+      const btnSample = document.getElementById("btn-mode-sample");
+      const btnLive = document.getElementById("btn-mode-live");
+      const jsonViewer = document.getElementById("res-json-output");
+      const statusBadge = document.getElementById("res-status-badge");
+      const timeSpan = document.getElementById("res-time");
+      const ep = ENDPOINTS[activeKey];
+
+      if (mode === "sample") {
+        if (btnSample) btnSample.classList.add("active");
+        if (btnLive) btnLive.classList.remove("active");
+        
+        statusBadge.textContent = "Contoh Dokumentasi";
+        statusBadge.className = "badge-docs";
+        timeSpan.innerHTML = `<i class="fas fa-file-code"></i> Schema Docs`;
+
+        const sample = ep && ep.responseSample ? ep.responseSample : { message: "Contoh respon belum tersedia." };
+        jsonViewer.textContent = JSON.stringify(sample, null, 2);
+      } else {
+        if (btnSample) btnSample.classList.remove("active");
+        if (btnLive) btnLive.classList.add("active");
+
+        if (currentLiveResponse) {
+          statusBadge.textContent = currentLiveResponse.status;
+          statusBadge.className = currentLiveResponse.ok ? "badge badge-success" : "badge badge-danger";
+          timeSpan.innerHTML = `<i class="fas fa-bolt"></i> ${currentLiveResponse.duration}ms`;
+          jsonViewer.textContent = JSON.stringify(currentLiveResponse.data, null, 2);
+        } else {
+          statusBadge.textContent = "Belum Ada Respon";
+          statusBadge.className = "badge badge-secondary";
+          timeSpan.innerHTML = `<i class="fas fa-clock"></i> Menunggu Request`;
+          jsonViewer.textContent = `// Belum ada respon live dari server.\n// Tekan tombol "Kirim Request" di atas untuk memanggil server secara real-time!`;
+        }
+      }
     }
 
     function selectEndpoint(key) {
@@ -409,8 +297,11 @@ console.log(res);
       const ep = ENDPOINTS[key];
       if (!ep) return;
 
+      currentLiveResponse = null; // Reset live response untuk endpoint yang baru dipilih
+
       document.querySelectorAll(".endpoint-item").forEach(item => {
-        item.classList.toggle("active", item.getAttribute("onclick").includes(`'${key}'`));
+        const isCurrent = item.getAttribute("data-id") === key || item.getAttribute("onclick") === `selectEndpoint('${key}')`;
+        item.classList.toggle("active", isCurrent);
       });
 
       const sb = document.getElementById("api-sidebar");
@@ -419,7 +310,7 @@ console.log(res);
       document.getElementById("ep-method").textContent = ep.method;
       document.getElementById("ep-method").className = `method-badge method-${ep.method.toLowerCase()}`;
       document.getElementById("ep-url-display").textContent = ep.url;
-      document.getElementById("ep-description").textContent = ep.desc;
+      document.getElementById("ep-description").textContent = ep.desc || "";
 
       const pContainer = document.getElementById("ep-params-container");
       const postBodyContainer = document.getElementById("ep-post-body-container");
@@ -427,16 +318,17 @@ console.log(res);
       if (ep.method === "GET") {
         postBodyContainer.style.display = "none";
         pContainer.style.display = "block";
-        if (ep.params.length === 0) {
-          pContainer.innerHTML = `<p style="color: var(--text-dim); font-size: 12px;">Endpoint ini tidak memerlukan parameter query tambahan.</p>`;
+        const params = Array.isArray(ep.params) ? ep.params : [];
+        if (params.length === 0) {
+          pContainer.innerHTML = `<p style="color: var(--text-dim); font-size: 12px; margin: 4px 0;">Endpoint ini tidak memerlukan parameter query tambahan.</p>`;
         } else {
           let html = `<table class="params-table"><thead><tr><th style="width:140px;">Parameter</th><th>Nilai</th><th style="width:200px;">Keterangan</th></tr></thead><tbody>`;
-          ep.params.forEach(p => {
+          params.forEach(p => {
             html += `
               <tr>
                 <td class="font-mono" style="color: var(--accent); font-weight:600;">${p.name}</td>
-                <td><input type="text" class="params-input" id="param-${p.name}" value="${p.default}" oninput="updateUrlPreview()"></td>
-                <td style="color: var(--text-dim); font-size:11px;">${p.desc}</td>
+                <td><input type="text" class="params-input" id="param-${p.name}" value="${p.default || ''}" oninput="updateUrlPreview()"></td>
+                <td style="color: var(--text-dim); font-size:11px;">${p.desc || ''}</td>
               </tr>
             `;
           });
@@ -446,49 +338,61 @@ console.log(res);
       } else {
         pContainer.style.display = "none";
         postBodyContainer.style.display = "block";
-        document.getElementById("ep-post-body").value = ep.body || "{}";
+        document.getElementById("ep-post-body").value = (typeof ep.body === "string" ? ep.body : (ep.body ? JSON.stringify(ep.body, null, 2) : "{}"));
       }
 
+      updateUrlPreview();
       updateCodeSnippet();
+      setResponseViewMode("sample"); // Tampilkan contoh dokumentasi resmi sebagai default
     }
 
     function updateUrlPreview() {
       const ep = ENDPOINTS[activeKey];
-      if (ep.method !== "GET") return;
+      if (!ep || ep.method !== "GET") return;
 
-      if (activeKey === "health") {
-        document.getElementById("ep-url-display").textContent = "/api/health";
-        updateCodeSnippet();
-        return;
-      }
+      const baseUrl = (ep.url && ep.url.includes("?")) 
+        ? ep.url.substring(0, ep.url.indexOf("?")) 
+        : (ep.url || "/api");
 
       const queryParts = [];
-      ep.params.forEach(p => {
-        const input = document.getElementById(`param-${p.name}`);
-        const val = input ? input.value : p.default;
-        if (val) queryParts.push(`${encodeURIComponent(p.name)}=${encodeURIComponent(val)}`);
-      });
+      if (Array.isArray(ep.params) && ep.params.length > 0) {
+        ep.params.forEach(p => {
+          const input = document.getElementById(`param-${p.name}`);
+          const val = input ? input.value : p.default;
+          if (val !== undefined && val !== "") {
+            queryParts.push(`${encodeURIComponent(p.name)}=${encodeURIComponent(val)}`);
+          }
+        });
+      }
 
-      const fullUrl = `/api?${queryParts.join("&")}`;
+      const fullUrl = queryParts.length > 0 ? `${baseUrl}?${queryParts.join("&")}` : baseUrl;
       document.getElementById("ep-url-display").textContent = fullUrl;
       updateCodeSnippet();
     }
 
     function updateCodeSnippet() {
       const ep = ENDPOINTS[activeKey];
+      if (!ep) return;
       const snippetBox = document.getElementById("ep-code-snippet");
+      const origin = window.location.origin || "http://localhost:3000";
 
       if (ep.method === "GET") {
         const path = document.getElementById("ep-url-display").textContent;
-        snippetBox.innerHTML = `// Integrasi JavaScript Bot WA / Node.js\nconst res = await fetch("http://localhost:3000${path}").then(r => r.json());\nconsole.log(res);`;
+        snippetBox.textContent = `// Integrasi JavaScript Bot WA / Extension / Script\nconst res = await fetch("${origin}${path}").then(r => r.json());\nconsole.log(res);`;
       } else {
-        const body = document.getElementById("ep-post-body").value;
-        snippetBox.innerHTML = `// Integrasi POST Request ke Database Portal\nconst res = await fetch("http://localhost:3000/api", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify(${body.replace(/\n/g, "\n  ")})\n}).then(r => r.json());\nconsole.log(res);`;
+        const targetUrl = ep.url.startsWith("/") ? ep.url : `/${ep.url}`;
+        const body = document.getElementById("ep-post-body").value || "{}";
+        let formattedBody = body;
+        try {
+          formattedBody = JSON.stringify(JSON.parse(body), null, 2);
+        } catch (e) {}
+        snippetBox.textContent = `// Integrasi POST Request ke Database Portal RSKDGM\nconst res = await fetch("${origin}${targetUrl}", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify(${formattedBody.replace(/\n/g, "\n  ")})\n}).then(r => r.json());\nconsole.log(res);`;
       }
     }
 
     async function executeCurrentRequest() {
       const ep = ENDPOINTS[activeKey];
+      if (!ep) return;
       const btn = document.getElementById("btn-send-request");
       const jsonViewer = document.getElementById("res-json-output");
       const statusBadge = document.getElementById("res-status-badge");
@@ -496,18 +400,28 @@ console.log(res);
 
       btn.disabled = true;
       btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Mengirim...`;
+      
+      // Beralih ke live view saat kirim request
+      const btnSample = document.getElementById("btn-mode-sample");
+      const btnLive = document.getElementById("btn-mode-live");
+      if (btnSample) btnSample.classList.remove("active");
+      if (btnLive) btnLive.classList.add("active");
+      statusBadge.textContent = "Menghubungi...";
+      statusBadge.className = "badge badge-info";
+      timeSpan.innerHTML = `<i class="fas fa-spinner fa-spin"></i> RTT`;
       jsonViewer.textContent = "Menghubungi server...";
 
       const startTime = performance.now();
 
       try {
         let res;
+        const targetUrl = ep.url.startsWith("/") ? ep.url : `/${ep.url}`;
         if (ep.method === "GET") {
           const url = document.getElementById("ep-url-display").textContent;
           res = await fetch(url);
         } else {
           const body = document.getElementById("ep-post-body").value;
-          res = await fetch("/api", {
+          res = await fetch(targetUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: body
@@ -516,18 +430,25 @@ console.log(res);
 
         const endTime = performance.now();
         const duration = Math.round(endTime - startTime);
-
-        statusBadge.textContent = `${res.status} ${res.statusText}`;
-        statusBadge.className = res.ok ? "badge badge-success" : "badge badge-danger";
-        timeSpan.innerHTML = `<i class="fas fa-bolt"></i> ${duration}ms`;
-
         const data = await res.json();
-        jsonViewer.textContent = JSON.stringify(data, null, 2);
+
+        currentLiveResponse = {
+          data: data,
+          status: `${res.status} ${res.statusText}`,
+          ok: res.ok,
+          duration: duration
+        };
+
+        setResponseViewMode("live");
         showToast(`Request berhasil (${duration}ms)`);
       } catch (err) {
-        statusBadge.textContent = "Error";
-        statusBadge.className = "badge badge-danger";
-        jsonViewer.textContent = JSON.stringify({ error: err.message }, null, 2);
+        currentLiveResponse = {
+          data: { error: err.message },
+          status: "Error",
+          ok: false,
+          duration: Math.round(performance.now() - startTime)
+        };
+        setResponseViewMode("live");
         showToast(err.message, "error");
       } finally {
         btn.disabled = false;
@@ -575,7 +496,6 @@ console.log(res);
       const themeSelect = document.getElementById('theme-select');
       if (themeSelect) themeSelect.value = savedTheme;
       selectEndpoint("ping");
-      executeCurrentRequest();
     });
   </script>
 </body>
