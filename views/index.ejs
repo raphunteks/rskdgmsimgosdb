@@ -29,21 +29,18 @@
           <span class="menu-item" onclick="toggleFullscreen()">Tampilan</span>
           <span class="menu-item" onclick="openAddModal()">Sisipkan</span>
           <span class="menu-item" onclick="switchTab('DATA_PASIEN')">Data</span>
-          <span class="menu-item" onclick="triggerRestore408Modal()" style="color: #0284c7; font-weight: 700;" title="Pulihkan 408 Data Pasien Asli ke Database Redis">
-            <i class="fas fa-database"></i> Restore 408
+          <span class="menu-item" id="btn-header-restore" onclick="triggerRestoreBackupModal()" style="color: #0284c7; font-weight: 700; cursor: pointer;" title="Pulihkan Data Pasien dari Backup Upstash Redis">
+            <i class="fas fa-database"></i> <span id="label-restore-count">Restore 408</span>
           </span>
-          <a href="/admin" class="menu-item" style="color: #10b981; font-weight: 700;">
-            <i class="fas fa-chart-pie"></i> Admin Analytics
-          </a>
-          <a href="/restsheet" class="menu-item" style="color: var(--accent); font-weight: 600;">
-            <i class="fas fa-terminal"></i> RestSheet Console
-          </a>
+          <span class="menu-item" id="btn-header-backup" onclick="triggerBackupNow()" style="color: #10b981; font-weight: 700; cursor: pointer;" title="Cadangkan Seluruh Data Pasien Saat Ini ke Upstash Redis">
+            <i class="fas fa-save"></i> Backup Now
+          </span>
         </div>
       </div>
     </div>
 
     <div class="header-actions">
-      <!-- Theme Switcher Dropdown (Default Light) -->
+      <!-- Theme Switcher Dropdown (Diposisikan persis di samping tombol Tarik GAS agar rapi) -->
       <div class="theme-selector-wrap">
         <select class="theme-dropdown-select" id="theme-select" onchange="changeTheme(this.value)"
           title="Ganti Tema Tampilan">
@@ -51,19 +48,6 @@
           <option value="blue-cyan">🌊 Blue Cyan Soft</option>
           <option value="dark">🌙 Dark Glass</option>
         </select>
-      </div>
-
-      <!-- Storage Status Indicator -->
-      <div class="status-indicator-group">
-        <div class="status-pill redis-pill" title="Upstash Redis Layer 1 Status">
-          <span class="status-dot online"></span>
-          <span>Redis L1</span>
-          <span class="status-latency">&lt;10ms</span>
-        </div>
-        <div class="status-pill gas-pill" title="Google Sheets Secondary Backup Status">
-          <span class="status-dot gas"></span>
-          <span>GAS L2</span>
-        </div>
       </div>
 
       <!-- Sync Button -->
@@ -953,6 +937,29 @@
     setInterval(updateClock, 1000);
     updateClock();
 
+    // Auto-Pulse Realtime Live Sync: Otomatis mendeteksi pasien baru masuk dari Chrome Extension
+    let isPulseChecking = false;
+    async function checkRealtimeSync() {
+      if (document.hidden || isPulseChecking) return;
+      isPulseChecking = true;
+      try {
+        const res = await fetch(`/api/health?t=${Date.now()}`);
+        if (!res.ok) return;
+        const h = await res.json();
+        const serverPatientCount = h.dataset?.patients || 0;
+        if (serverPatientCount > 0 && state.patients.length > 0 && serverPatientCount !== state.patients.length) {
+          const diff = serverPatientCount - state.patients.length;
+          await loadAllData(false);
+          showToast(`⚡ Realtime Sync: ${diff > 0 ? '+' + diff : diff} data pasien baru terdeteksi dari SIMGOS Scraper!`, "success");
+        }
+      } catch (e) {
+        // silent fail
+      } finally {
+        isPulseChecking = false;
+      }
+    }
+    setInterval(checkRealtimeSync, 6000);
+
     // Toast Notification
     function showToast(msg, type = "success") {
       const container = document.getElementById("toast-container");
@@ -1056,6 +1063,7 @@
           renderTablePrompts();
           updateRowCountStatus();
           initRowDragAndDrop();
+          fetchBackupInfo();
 
           if (showNotification) showToast(`Data berhasil dimuat (${state.patients.length} pasien)`);
         }
@@ -2544,20 +2552,67 @@
       updateRowCountStatus();
     }
 
-    async function triggerRestore408Modal() {
-      if (!confirm("Konfirmasi: Pulihkan seluruh 408 data pasien RSKDGM asli ke Upstash Redis?")) return;
-      showToast("Sedang memulihkan 408 data pasien ke Upstash Redis...");
+    let currentBackupCount = 408;
+
+    async function fetchBackupInfo() {
       try {
-        const res = await fetch("/api/restore-408", { method: "POST" });
+        const res = await fetch("/api/backup-info");
         const json = await res.json();
         if (json.status === "success") {
-          showToast(`Berhasil! ${json.message}`);
-          await loadAllData(true);
-        } else {
-          alert("Gagal memulihkan: " + json.message);
+          currentBackupCount = json.backupCount || 408;
+          const labelEl = document.getElementById("label-restore-count");
+          if (labelEl) labelEl.textContent = `Restore ${currentBackupCount}`;
         }
       } catch (e) {
-        alert("Error: " + e.message);
+        const labelEl = document.getElementById("label-restore-count");
+        if (labelEl) labelEl.textContent = `Restore ${currentBackupCount}`;
+      }
+    }
+
+    async function triggerBackupNow() {
+      const count = state.patients.length;
+      if (count === 0) {
+        alert("Tabel pasien saat ini kosong, tidak ada data untuk dicadangkan.");
+        return;
+      }
+      if (!confirm(`Konfirmasi Backup Snapshot:\nApakah Anda yakin ingin mencadangkan seluruh ${count} data pasien saat ini ke Upstash Redis?`)) return;
+
+      showToast(`Sedang mencadangkan ${count} data pasien ke Upstash Redis...`);
+      try {
+        const res = await fetch("/api/backup-now", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ patients: state.patients })
+        });
+        const json = await res.json();
+        if (json.status === "success") {
+          currentBackupCount = json.count || count;
+          const labelEl = document.getElementById("label-restore-count");
+          if (labelEl) labelEl.textContent = `Restore ${currentBackupCount}`;
+          showToast(`💾 Backup Berhasil! ${currentBackupCount} data pasien tersimpan aman di Upstash Redis.`, "success");
+        } else {
+          showToast(`Gagal backup: ${json.message}`, "error");
+        }
+      } catch (e) {
+        showToast(`Error backup: ${e.message}`, "error");
+      }
+    }
+
+    async function triggerRestoreBackupModal() {
+      if (!confirm(`Konfirmasi Disaster Recovery:\nApakah Anda yakin ingin MEMULIHKAN ${currentBackupCount} data pasien cadangan dari Upstash Redis ke tabel aktif?\n\n(Data tabel saat ini akan digantikan dengan data cadangan terbaru).`)) return;
+
+      showToast(`Sedang memulihkan ${currentBackupCount} data pasien ke Upstash Redis & tabel aktif...`);
+      try {
+        const res = await fetch("/api/restore-backup", { method: "POST" });
+        const json = await res.json();
+        if (json.status === "success") {
+          showToast(`🎉 Pulih Berhasil! ${json.message}`, "success");
+          await loadAllData(true);
+        } else {
+          showToast("Gagal memulihkan: " + json.message, "error");
+        }
+      } catch (e) {
+        showToast("Error pemulihan: " + e.message, "error");
       }
     }
 
