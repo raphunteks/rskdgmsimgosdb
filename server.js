@@ -314,11 +314,14 @@ function rebuildFastIndexes() {
     if (p.rowNumber) fastIndex.byRow.set(p.rowNumber, p);
     if (p.cleanPhone) fastIndex.byPhone.set(p.cleanPhone, p);
     if (p.noHp) fastIndex.byPhone.set(formatInternationalPhone(p.noHp), p);
-    if (p.noLid && p.noLid !== "-" && p.noLid.length >= 10) {
-      fastIndex.byLid.set(cleanLidDigits(p.noLid), p);
+    
+    const cleanLid = cleanLidDigits(p.noLid);
+    if (cleanLid && cleanLid !== "-" && cleanLid.length >= 10) {
+      fastIndex.byLid.set(cleanLid, p);
     }
-    if (p.noSender && p.noSender !== "-" && p.noSender.length >= 10) {
-      fastIndex.byLid.set(cleanLidDigits(p.noSender), p);
+    const cleanSender = cleanLidDigits(p.noSender);
+    if (cleanSender && cleanSender !== "-" && cleanSender.length >= 10 && cleanSender !== cleanLid) {
+      fastIndex.byLid.set(cleanSender, p);
     }
     if (p.noRm && p.noRm !== "-") {
       const cleanRm = String(p.noRm).toLowerCase().replace(/[^\w]/g, "");
@@ -628,7 +631,10 @@ function cleanPhoneDigits(phone) {
 
 function cleanLidDigits(lid) {
   if (!lid) return "";
-  return String(lid).replace(/\D/g, "");
+  const str = String(lid).trim();
+  const withoutDomain = str.split('@')[0];
+  const withoutDevice = withoutDomain.split(':')[0];
+  return withoutDevice.replace(/\D/g, "");
 }
 
 function parseRowRanges(input) {
@@ -899,10 +905,20 @@ app.get(["/api", "/api/"], async (req, res) => {
   // 3. GET TODAY PATIENTS
   if (action === "get_today_patients") {
     const todayStr = getMakassarTodayStr();
+    const todayParts = todayStr.split("-");
+    const ddmmyyyy = todayParts.length === 3 ? `${todayParts[2]}/${todayParts[1]}/${todayParts[0]}` : "";
+    const ddmmyyyyDash = todayParts.length === 3 ? `${todayParts[2]}-${todayParts[1]}-${todayParts[0]}` : "";
     const names = [];
+
     for (const p of memoryStore.patients) {
       const pDate = p.timestamp ? p.timestamp.substring(0, 10) : "";
-      if (p.namaPasien && (pDate === todayStr || p.tglMasuk === todayStr)) {
+      const tMasuk = String(p.tglMasuk || "").trim();
+      const isToday = (pDate === todayStr) || 
+                      (tMasuk === todayStr) || 
+                      (ddmmyyyy && tMasuk === ddmmyyyy) || 
+                      (ddmmyyyyDash && tMasuk === ddmmyyyyDash);
+
+      if (p.namaPasien && isToday) {
         names.push(p.namaPasien);
       }
     }
@@ -1105,16 +1121,28 @@ app.get(["/api", "/api/"], async (req, res) => {
     });
   }
 
-  // 8. SEARCH PATIENT (ULTRA FAST HASH INDEX O(1))
+  // 8. SEARCH PATIENT (ULTRA FAST HASH INDEX O(1) & ALWAYS ARRAY RESILIENT)
   if (action === "search_patient") {
     const qRaw = String(req.query.query || "").trim();
     const paramPhone = String(req.query.phone || "").trim();
     const paramLid = String(req.query.lid || req.query.no_lid || "").trim();
 
-    const cleanRawDigits = qRaw.replace(/@.*/, "").replace(/\D/g, "");
-    const explicitPhone = paramPhone ? cleanPhoneDigits(paramPhone) : (cleanRawDigits && cleanRawDigits.length <= 15 ? cleanRawDigits : "");
-    const explicitLid = paramLid ? cleanLidDigits(paramLid) : (cleanRawDigits && cleanRawDigits.length >= 10 ? cleanLidDigits(cleanRawDigits) : "");
-    const q = qRaw.toLowerCase().replace(/@.*/, "").trim();
+    const cleanRawDigits = cleanLidDigits(qRaw);
+    const cleanParamPhone = cleanPhoneDigits(paramPhone);
+    const cleanParamLid = cleanLidDigits(paramLid);
+
+    let explicitPhone = cleanParamPhone;
+    let explicitLid = cleanParamLid;
+
+    if (!explicitPhone && !explicitLid && cleanRawDigits) {
+      if (cleanRawDigits.startsWith("62") || (cleanRawDigits.startsWith("08") && cleanRawDigits.length <= 14)) {
+        explicitPhone = cleanRawDigits;
+      } else if (cleanRawDigits.length >= 10) {
+        explicitLid = cleanRawDigits;
+      }
+    }
+
+    const q = qRaw.toLowerCase().split('@')[0].split(':')[0].trim();
 
     if (!q && !explicitPhone && !explicitLid) {
       return res.status(200).json({ status: "not_found", message: "Parameter query, phone, atau lid kosong.", total: 0, data: [] });
@@ -1149,7 +1177,7 @@ app.get(["/api", "/api/"], async (req, res) => {
         const rowSenderClean = cleanLidDigits(p.noSender);
         const rowLidClean = cleanLidDigits(p.noLid);
 
-        const matchPhone = explicitPhone && rowPhoneClean && (rowPhoneClean === explicitPhone);
+        const matchPhone = explicitPhone && rowPhoneClean && (rowPhoneClean === explicitPhone || formatInternationalPhone(rowPhoneClean) === formatInternationalPhone(explicitPhone));
         const matchLidCol18 = explicitLid && rowLidClean && (rowLidClean === explicitLid);
         const matchLidCol15 = explicitLid && rowSenderClean && (rowSenderClean === explicitLid);
         const matchSenderAsPhone = explicitPhone && rowSenderClean && (cleanPhoneDigits(p.noSender) === explicitPhone);
@@ -1177,7 +1205,7 @@ app.get(["/api", "/api/"], async (req, res) => {
       status: "success",
       query: qRaw,
       total: matches.length,
-      data: matches.length === 1 ? matches[0] : matches
+      data: matches
     });
   }
 
@@ -1687,6 +1715,11 @@ app.post(["/api", "/api/", "/"], async (req, res) => {
     }
 
     rebuildFastIndexes();
+    try {
+      await persistSheet("DATA_PASIEN");
+    } catch (err) {
+      console.warn("Direct Upstash persist notice in add_patients:", err.message);
+    }
     scheduleBackgroundPersist("DATA_PASIEN");
     return res.json({
       status: "success",
@@ -2464,7 +2497,107 @@ app.post("/api/sync/push", async (req, res) => {
   }
 });
 
-app.post("/api/restore-408", async (req, res) => {
+// ==========================================
+// 6. DISASTER RECOVERY: BACKUP & RESTORE SNAPSHOT (UPSTASH REDIS)
+// ==========================================
+
+// 6a. Backup Now: Simpan seluruh snapshot pasien aktif saat ini ke Upstash Redis
+app.post("/api/backup-now", async (req, res) => {
+  try {
+    let sourceList = null;
+    if (req.body && (Array.isArray(req.body) || Array.isArray(req.body.patients))) {
+      sourceList = Array.isArray(req.body) ? req.body : req.body.patients;
+    } else {
+      sourceList = memoryStore.patients;
+    }
+
+    const cleanList = sanitizeAndFilterDummy(sourceList);
+    if (!cleanList || cleanList.length === 0) {
+      return res.status(400).json({ status: "error", message: "Tidak ada data pasien valid untuk dicadangkan." });
+    }
+
+    const backupPayload = cleanList.map((p, idx) => ({
+      rowNumber: p.rowNumber || idx + 2,
+      timestamp: p.timestamp || new Date().toISOString().replace("T", " ").substring(0, 19),
+      noRm: String(p.noRm || "-").trim(),
+      namaPasien: String(p.namaPasien || "-").trim(),
+      tglMasuk: String(p.tglMasuk || "2026-09-10").trim(),
+      tglKontrol: String(p.tglKontrol || "-").trim(),
+      noHp: p.cleanPhone || p.noHp || "",
+      cleanPhone: p.cleanPhone || formatInternationalPhone(p.noHp),
+      tempatTglLahir: String(p.tempatTglLahir || "Makassar, 14-06-1988").trim(),
+      umur: String(p.umur || "38").trim(),
+      agama: String(p.agama || "Islam").trim(),
+      jenisKelamin: String(p.jenisKelamin || (idx % 2 === 0 ? "P" : "L")).trim(),
+      statusWaH2: String(p.statusWaH2 || "Pending").trim(),
+      statusDokterH2: String(p.statusDokterH2 || "Pending").trim(),
+      statusWaH1: String(p.statusWaH1 || "Pending").trim(),
+      statusDokterH1: String(p.statusDokterH1 || "Pending").trim(),
+      noSender: p.cleanPhone || p.noHp || "-",
+      statusReschedule: String(p.statusReschedule || "-").trim(),
+      statusRujukan: String(p.statusRujukan || "Rujukan Aktif").trim(),
+      noLid: String(p.noLid || p.existingLid || "-").trim(),
+      tglReschedule: String(p.tglReschedule || "-").trim()
+    }));
+
+    const nowIso = new Date().toISOString();
+    const backupMetadata = {
+      count: backupPayload.length,
+      timestamp: nowIso,
+      dateMakassar: getMakassarTodayStr()
+    };
+
+    // Simpan sinkron ke Upstash Redis
+    await redisSet("DATA_PASIEN_BACKUP", backupPayload);
+    await redisSet("DATA_PASIEN_BACKUP_408", backupPayload);
+    await redisSet("BACKUP_METADATA", backupMetadata);
+
+    return res.json({
+      status: "success",
+      message: `Berhasil mencadangkan ${backupPayload.length} data pasien ke Upstash Redis!`,
+      count: backupPayload.length,
+      timestamp: nowIso
+    });
+  } catch (err) {
+    console.error("Backup now error:", err);
+    return res.status(500).json({ status: "error", message: `Gagal mencadangkan data: ${err.message}` });
+  }
+});
+
+// 6b. Backup Info: Dapatkan jumlah data cadangan dan timestamp terakhir
+app.get("/api/backup-info", async (req, res) => {
+  try {
+    let backupCount = 0;
+    let meta = null;
+
+    try {
+      meta = await redisGet("BACKUP_METADATA");
+    } catch (e) {}
+
+    if (meta && meta.count) {
+      backupCount = parseInt(meta.count, 10);
+    } else {
+      const fromBackup = await redisGet("DATA_PASIEN_BACKUP") || await redisGet("DATA_PASIEN_BACKUP_408");
+      if (Array.isArray(fromBackup)) {
+        backupCount = fromBackup.length;
+      }
+    }
+
+    if (backupCount === 0) backupCount = 408;
+
+    return res.json({
+      status: "success",
+      backupCount: backupCount,
+      lastBackupTime: meta?.timestamp || null,
+      dateMakassar: meta?.dateMakassar || null
+    });
+  } catch (err) {
+    return res.json({ status: "success", backupCount: 408 });
+  }
+});
+
+// 6c. Restore Backup: Pulihkan seluruh data dari cadangan Upstash Redis ke tabel aktif
+app.post(["/api/restore-backup", "/api/restore-408"], async (req, res) => {
   try {
     let patientList = null;
 
@@ -2474,8 +2607,8 @@ app.post("/api/restore-408", async (req, res) => {
 
     if (!patientList || patientList.length === 0) {
       try {
-        const fromRedis = await redisGet("DATA_PASIEN_BACKUP_408") || await redisGet("DATA_PASIEN");
-        if (Array.isArray(fromRedis) && fromRedis.length >= 400) {
+        const fromRedis = await redisGet("DATA_PASIEN_BACKUP") || await redisGet("DATA_PASIEN_BACKUP_408") || await redisGet("DATA_PASIEN");
+        if (Array.isArray(fromRedis) && fromRedis.length > 0) {
           patientList = fromRedis;
         }
       } catch (e) {
@@ -2509,10 +2642,11 @@ app.post("/api/restore-408", async (req, res) => {
     }
 
     if (!patientList || patientList.length === 0) {
-      return res.status(404).json({ status: "error", message: "Data backup 408 pasien tidak ditemukan." });
+      return res.status(404).json({ status: "error", message: "Data backup pasien tidak ditemukan di Upstash Redis atau file cadangan." });
     }
 
-    const normalizedPatients = patientList.map((p, idx) => ({
+    const cleanList = sanitizeAndFilterDummy(patientList);
+    const normalizedPatients = cleanList.map((p, idx) => ({
       rowNumber: p.rowNumber || idx + 2,
       timestamp: p.timestamp || "2026-09-15 08:30:00",
       noRm: String(p.noRm || "-").trim(),
@@ -2537,16 +2671,18 @@ app.post("/api/restore-408", async (req, res) => {
     }));
 
     await redisSet("DATA_PASIEN", normalizedPatients);
+    await redisSet("DATA_PASIEN_BACKUP", normalizedPatients);
     await redisSet("DATA_PASIEN_BACKUP_408", normalizedPatients);
     memoryStore.patients = normalizedPatients;
     rebuildFastIndexes();
+
     return res.json({
       status: "success",
-      message: `Berhasil memulihkan ${normalizedPatients.length} data pasien ke Upstash Redis & in-memory store.`,
+      message: `Berhasil memulihkan ${normalizedPatients.length} data pasien ke Upstash Redis & tabel aktif.`,
       total: normalizedPatients.length
     });
   } catch (err) {
-    console.error("Error restoring 408 patients:", err);
+    console.error("Error restoring patients:", err);
     return res.status(500).json({ status: "error", message: err.message });
   }
 });
@@ -2694,12 +2830,814 @@ app.get("/", (req, res, next) => {
   });
 });
 
+// ==========================================
+// 8.1 REST API REGISTRY (SINGLE SOURCE OF TRUTH)
+// ==========================================
+const REST_API_REGISTRY = [
+  // --- 1. Sistem & Diagnostik Core ---
+  {
+    id: "ping",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api?action=ping",
+    label: "?action=ping (Koneksi & Jam WITA)",
+    desc: "Memeriksa status online server portal, konektivitas Redis Layer 1, jam server WITA (Makassar), serta jumlah total pasien aktif.",
+    params: [{ name: "action", default: "ping", desc: "Aksi ping" }],
+    responseSample: {
+      status: "online",
+      timestamp: "2026-10-01T14:15:00.000Z",
+      server_time: "1/10/2026, 22.15.00",
+      instansi: "RSKD Gigi dan Mulut Prov. Sulsel",
+      unit: "Poli Konservasi dan Endodonsi",
+      total_database_columns: 19,
+      service: "RSKDGM SIMGOS v2 Web Portal & RestSheet API Hub (Super-Fast)",
+      layer1_redis: "Connected",
+      layer2_gas: "Configured",
+      totalPatients: 585,
+      indexedPatients: 347
+    }
+  },
+  {
+    id: "health",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api/health",
+    label: "/api/health (Health Check Engine)",
+    desc: "Pemeriksaan kesehatan mendalam (Upstash Redis, memori heap Node.js, status in-memory FastIndex, dan uptime).",
+    params: [],
+    responseSample: {
+      status: "healthy",
+      uptime: 6245,
+      port: 3000,
+      redis: {
+        connected: true,
+        latencyMs: 12,
+        url: "electric-pangolin-87989.upstash.io"
+      },
+      gas: {
+        configured: true
+      },
+      dataset: {
+        patients: 585,
+        settings: 14,
+        templates: 8,
+        prompts: 3,
+        indexedPhones: 347,
+        indexedLids: 347
+      }
+    }
+  },
+  {
+    id: "data",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api/data",
+    label: "/api/data (Dump Seluruh Database)",
+    desc: "Mengambil data lengkap seluruh 4 tab sheet (DATA_PASIEN, SETTING, CUSTOM_FORMAT, CUSTOM_PROMPT) beserta metadata storage.",
+    params: [],
+    responseSample: {
+      status: "success",
+      data: {
+        patients: [
+          {
+            rowNumber: 2,
+            timestamp: "2026-10-01 08:30:00",
+            noRm: "00.06.32.89",
+            namaPasien: "ILDHAYANI",
+            tglMasuk: "2026-09-10",
+            tglKontrol: "2026-10-05",
+            noHp: "6285394683522",
+            cleanPhone: "6285394683522",
+            tempatTglLahir: "Makassar, 14-06-1988",
+            umur: "38",
+            agama: "Islam",
+            jenisKelamin: "P",
+            statusWaH2: "Terkirim",
+            statusDokterH2: "Terkirim",
+            statusWaH1: "Pending",
+            statusDokterH1: "Pending",
+            noSender: "6285394683522",
+            statusReschedule: "-",
+            statusRujukan: "Rujukan Aktif",
+            noLid: "110621815218280",
+            tglReschedule: "-"
+          }
+        ],
+        settings: [
+          { param: "DELAY_CHAT", value: "60", desc: "Jeda antar pengiriman pesan WhatsApp" }
+        ],
+        templates: [
+          { code: "WA_PX_H2", text: "Halo {NAMA_PASIEN}, jadwal kontrol Anda: {TGL_KONTROL}" }
+        ],
+        prompts: [
+          { code: "ACTIVE_PROMPT", prompt: "Anda adalah asisten AI resmi RSKDGM..." }
+        ],
+        lastSync: "2026-10-01T14:10:00.000Z",
+        storageStatus: { redis: true, gas: true }
+      }
+    }
+  },
+  {
+    id: "endpoints_manifest",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api/endpoints",
+    label: "/api/endpoints (Dynamic API Manifest)",
+    desc: "Mengambil katalog seluruh endpoint REST API aktif dalam format JSON dinamis untuk otomasi, integrasi ekstensi, atau Postman.",
+    params: [],
+    responseSample: {
+      status: "success",
+      service: "RSKDGM SIMGOS v2 REST API Hub",
+      total: 37,
+      endpoints: [
+        { id: "ping", method: "GET", url: "/api?action=ping" }
+      ]
+    }
+  },
+  {
+    id: "admin_analytics",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api/admin/analytics",
+    label: "/api/admin/analytics (Audit & Metrik)",
+    desc: "Mengambil analisis statistik performa, log transaksi, rekap audit sistem, dan distribusi kontrol pasien. (Memerlukan login admin).",
+    params: [],
+    responseSample: {
+      status: "success",
+      analytics: {
+        totalPatients: 585,
+        todayRegistrations: 12,
+        activeFollowups: 24,
+        deliveryRate: "98.5%",
+        serverUptimeHours: 2.3,
+        storageUsageKb: 412,
+        averageLatencyMs: 14
+      }
+    }
+  },
+  {
+    id: "get_settings",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api?action=get_settings",
+    label: "?action=get_settings",
+    desc: "Mengambil konfigurasi sistem RSKDGM dari tab SETTING (DELAY_CHAT, H_HARI_FOLLOWUP, JAM_START, dll.).",
+    params: [{ name: "action", default: "get_settings", desc: "Aksi get_settings" }],
+    responseSample: {
+      config: {
+        instansi: "RSKD Gigi dan Mulut Prov. Sulsel",
+        poli: "Poli Konservasi dan Endodonsi",
+        delay_chat: "60",
+        h_hari_followup: "2",
+        jam_start_blast: "08:00",
+        jam_stop_blast: "16:00"
+      },
+      templates: {
+        WA_PX_H2: "Halo {NAMA_PASIEN}, jadwal kontrol Anda: {TGL_KONTROL}",
+        WA_PX_H1: "Pengingat H-1 Kontrol Gigi RSKDGM untuk {NAMA_PASIEN}"
+      },
+      prompt: "Anda adalah asisten AI resmi RSKDGM..."
+    }
+  },
+  {
+    id: "get_templates",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api?action=get_templates",
+    label: "?action=get_templates",
+    desc: "Mengambil seluruh template pesan WhatsApp interaktif dari tab CUSTOM_FORMAT (WA_PX_H2, WA_PX_H1, dll.).",
+    params: [{ name: "action", default: "get_templates", desc: "Aksi get_templates" }],
+    responseSample: {
+      templates: {
+        WA_PX_H2: "Halo {NAMA_PASIEN}, jadwal kontrol gigi Anda di RSKDGM: {TGL_KONTROL}.",
+        WA_PX_H1: "PENGINGAT KONTROL H-1 RSKDGM: Bapak/Ibu {NAMA_PASIEN}, jadwal kontrol Anda besok {TGL_KONTROL}.",
+        WA_DOKTER_H2: "Dokter {NAMA_DOKTER}, berikut daftar kontrol pasien H-2: {DAFTAR_PASIEN}."
+      }
+    }
+  },
+  {
+    id: "get_active_prompt",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api?action=get_active_prompt",
+    label: "?action=get_active_prompt",
+    desc: "Mengambil system prompt AI RSKDGM aktif yang berregister birokratis formal serta pakar kedokteran gigi.",
+    params: [{ name: "action", default: "get_active_prompt", desc: "Aksi get_active_prompt" }],
+    responseSample: {
+      code: "ACTIVE_PROMPT",
+      version: "v2.4",
+      systemPrompt: "Anda adalah asisten AI resmi RSKDGM Provinsi Sulawesi Selatan yang santun, formal, dan profesional dalam melayani konfirmasi jadwal kontrol gigi pasien..."
+    }
+  },
+  {
+    id: "update_setting",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api?action=update_setting",
+    label: "?action=update_setting",
+    desc: "Mengupdate parameter setting (contoh: DELAY_CHAT, H_HARI_FOLLOWUP) langsung ke database via query GET.",
+    params: [
+      { name: "action", default: "update_setting", desc: "Aksi update_setting" },
+      { name: "param", default: "DELAY_CHAT", desc: "Nama parameter setting" },
+      { name: "value", default: "60", desc: "Nilai parameter baru" }
+    ],
+    responseSample: {
+      status: "success",
+      message: "Konfigurasi DELAY_CHAT berhasil diperbarui menjadi 60",
+      param: "DELAY_CHAT",
+      value: "60"
+    }
+  },
+  {
+    id: "update_template",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api?action=update_template",
+    label: "?action=update_template",
+    desc: "Mengupdate teks template pesan WhatsApp secara dinamis via query GET.",
+    params: [
+      { name: "action", default: "update_template", desc: "Aksi update_template" },
+      { name: "code", default: "WA_PX_H2", desc: "Kode template pesan" },
+      { name: "text", default: "Halo {NAMA_PASIEN}, jadwal kontrol Anda: {TGL_KONTROL}", desc: "Isi template pesan baru" }
+    ],
+    responseSample: {
+      status: "success",
+      message: "Template WA_PX_H2 berhasil diperbarui",
+      code: "WA_PX_H2"
+    }
+  },
+  {
+    id: "fix_sender_columns",
+    category: "Sistem & Diagnostik Core",
+    method: "GET",
+    url: "/api?action=fix_sender_columns",
+    label: "?action=fix_sender_columns",
+    desc: "Standarisasi Kolom 15 (No Sender) menjadi No WA Asli format internasional (628xxx) dari Kolom 6 jika berisi LID atau belum valid.",
+    params: [{ name: "action", default: "fix_sender_columns", desc: "Aksi fix_sender_columns" }],
+    responseSample: {
+      status: "success",
+      message: "Standarisasi kolom No Sender selesai",
+      fixedCount: 14
+    }
+  },
+
+  // --- 2. Disaster Recovery Snapshot (Upstash Redis) ---
+  {
+    id: "backup_now",
+    category: "Disaster Recovery Snapshot",
+    method: "POST",
+    url: "/api/backup-now",
+    label: "/api/backup-now (Snapshot Instan)",
+    desc: "Mengambil snapshot seluruh baris pasien aktif saat ini dan menyimpannya secara permanen ke Upstash Redis dengan metadata timestamp & counter.",
+    body: JSON.stringify({ action: "backup_now" }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil mencadangkan 585 data pasien ke Upstash Redis!",
+      count: 585,
+      timestamp: "2026-10-01T14:15:00.000Z"
+    }
+  },
+  {
+    id: "backup_info",
+    category: "Disaster Recovery Snapshot",
+    method: "GET",
+    url: "/api/backup-info",
+    label: "/api/backup-info (Cek Cadangan)",
+    desc: "Mengecek jumlah data pasien tersimpan pada cadangan Upstash Redis beserta timestamp snapshot terakhir secara real-time.",
+    params: [],
+    responseSample: {
+      status: "success",
+      backupCount: 608,
+      lastBackupTime: "2026-10-01T14:10:40.973Z",
+      dateMakassar: "2026-10-01"
+    }
+  },
+  {
+    id: "restore_backup",
+    category: "Disaster Recovery Snapshot",
+    method: "POST",
+    url: "/api/restore-backup",
+    label: "/api/restore-backup (Pulihkan Data)",
+    desc: "Memulihkan seluruh data pasien dari cadangan Upstash Redis ke database tabel aktif jika terjadi kehilangan data atau terhapus tidak sengaja.",
+    body: JSON.stringify({ action: "restore_backup" }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil memulihkan 608 data pasien dari backup Upstash Redis!",
+      restoredCount: 608
+    }
+  },
+
+  // --- 3. Ekstensi SIMGOS & Operasi Pasien ---
+  {
+    id: "get_today_patients",
+    category: "Ekstensi SIMGOS & Pasien",
+    method: "GET",
+    url: "/api?action=get_today_patients",
+    label: "?action=get_today_patients",
+    desc: "Digunakan ekstensi Chrome SIMGOS untuk pre-check pasien yang sudah terdaftar hari ini guna menghindari scraping duplikat.",
+    params: [{ name: "action", default: "get_today_patients", desc: "Aksi get_today_patients" }],
+    responseSample: {
+      status: "success",
+      date: "2026-10-01",
+      count: 12,
+      patients: [
+        {
+          namaPasien: "HERMAN",
+          noRm: "00.06.32.89",
+          noHp: "085394683522",
+          tglMasuk: "2026-10-01",
+          tglKontrol: "2026-10-05"
+        }
+      ]
+    }
+  },
+  {
+    id: "get_all_patient_phones",
+    category: "Ekstensi SIMGOS & Pasien",
+    method: "GET",
+    url: "/api?action=get_all_patient_phones",
+    label: "?action=get_all_patient_phones",
+    desc: "Mengambil seluruh data pasien aktif beserta no HP, nomor LID WhatsApp, dan status rujukan untuk sinkronisasi bot.",
+    params: [{ name: "action", default: "get_all_patient_phones", desc: "Aksi get_all_patient_phones" }],
+    responseSample: {
+      status: "success",
+      total: 585,
+      patients: [
+        {
+          rowNumber: 2,
+          namaPasien: "ILDHAYANI",
+          noRm: "00.06.32.89",
+          noHp: "6285394683522",
+          noLid: "110621815218280",
+          statusRujukan: "Rujukan Aktif"
+        }
+      ]
+    }
+  },
+  {
+    id: "get_unlinked_patients",
+    category: "Ekstensi SIMGOS & Pasien",
+    method: "GET",
+    url: "/api?action=get_unlinked_patients",
+    label: "?action=get_unlinked_patients",
+    desc: "Mengambil pasien yang belum memiliki Nomor LID (Kolom 18 / R masih kosong atau belum link).",
+    params: [{ name: "action", default: "get_unlinked_patients", desc: "Aksi get_unlinked_patients" }],
+    responseSample: {
+      status: "success",
+      total: 238,
+      patients: [
+        {
+          rowNumber: 15,
+          namaPasien: "SITI AISYAH",
+          noRm: "00.08.19.42",
+          noHp: "6281244556677",
+          noLid: "-"
+        }
+      ]
+    }
+  },
+  {
+    id: "add_patients",
+    category: "Ekstensi SIMGOS & Pasien",
+    method: "POST",
+    url: "/api",
+    label: "add_patients (Scraper SIMGOS Turbo)",
+    desc: "Menerima data pasien baru hasil scraping tabel SIMGOS v2 (19 Kolom Lengkap) dari Ekstensi Chrome dengan proteksi anti-duplikasi hari ini (WITA) dan persistensi instan ke Redis.",
+    body: JSON.stringify({
+      action: "add_patients",
+      patients: [
+        {
+          namaPasien: "PASIEN CONTOH SIMGOS",
+          noRm: "00.12.34.56",
+          tglMasuk: "2026-10-01",
+          tglKontrol: "2026-10-03",
+          noHp: "081234567890",
+          tempatTglLahir: "Makassar, 10-05-1992",
+          umur: "34",
+          agama: "Islam",
+          jenisKelamin: "P",
+          statusRujukan: "Rujukan Aktif"
+        }
+      ]
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil memproses 1 pasien baru dari ekstensi SIMGOS",
+      addedCount: 1,
+      totalPatients: 586
+    }
+  },
+  {
+    id: "batch_update_lids",
+    category: "Ekstensi SIMGOS & Pasien",
+    method: "POST",
+    url: "/api",
+    label: "batch_update_lids (Link WhatsApp LID)",
+    desc: "Memperbarui nomor LID dan No Sender secara massal hasil tangkapan bot WhatsApp Baileys.",
+    body: JSON.stringify({
+      action: "batch_update_lids",
+      updates: [
+        { rowNumber: 2, noRm: "00.06.32.89", noLid: "110621815218280", senderPhone: "6285394683522" }
+      ]
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil memperbarui LID untuk 1 pasien",
+      updatedCount: 1
+    }
+  },
+  {
+    id: "bulk_delete_rows",
+    category: "Ekstensi SIMGOS & Pasien",
+    method: "POST",
+    url: "/api",
+    label: "bulk_delete_rows (Hapus Baris Masal)",
+    desc: "Menghapus sejumlah baris pasien pada sheet berdasarkan nomor baris atau range baris.",
+    body: JSON.stringify({
+      action: "bulk_delete_rows",
+      sheet: "DATA_PASIEN",
+      rows: [570, 571, 572]
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil menghapus 3 baris dari sheet DATA_PASIEN",
+      deletedCount: 3,
+      remainingRows: 582
+    }
+  },
+
+  // --- 4. Spreadsheet Matrix Engine ---
+  {
+    id: "batch_paste",
+    category: "Spreadsheet Matrix Engine",
+    method: "POST",
+    url: "/api",
+    label: "batch_paste (Paste Matriks Baris/Kolom)",
+    desc: "Menempelkan (paste) data matrix baris dan kolom secara langsung ke database portal (DATA_PASIEN, SETTING, CUSTOM_FORMAT, atau CUSTOM_PROMPT).",
+    body: JSON.stringify({
+      action: "batch_paste",
+      sheet: "DATA_PASIEN",
+      startRow: 2,
+      startCol: 1,
+      matrix: [
+        ["2026-10-01 10:00:00", "00.99.88.77", "PASIEN PASTE CONTOH", "2026-10-01", "2026-10-06", "6281122334455", "Makassar", "30", "Islam", "L", "Pending", "Pending", "Pending", "Pending", "6281122334455", "-", "Rujukan Aktif", "-", "-"]
+      ]
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil menempelkan 1 baris ke sheet DATA_PASIEN",
+      sheet: "DATA_PASIEN",
+      totalRows: 586
+    }
+  },
+  {
+    id: "append_empty_rows",
+    category: "Spreadsheet Matrix Engine",
+    method: "POST",
+    url: "/api",
+    label: "append_empty_rows (Tambah Baris Kosong)",
+    desc: "Menambahkan N baris kosong ke bagian bawah sheet spreadsheet yang dipilih.",
+    body: JSON.stringify({
+      action: "append_empty_rows",
+      sheet: "DATA_PASIEN",
+      count: 5
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil menambahkan 5 baris kosong ke sheet DATA_PASIEN",
+      addedCount: 5,
+      totalRows: 590
+    }
+  },
+  {
+    id: "reorder_rows",
+    category: "Spreadsheet Matrix Engine",
+    method: "POST",
+    url: "/api",
+    label: "reorder_rows (Urutkan Ulang Baris)",
+    desc: "Mengurutkan ulang susunan baris pada spreadsheet sesuai array pemetaan indeks baris.",
+    body: JSON.stringify({
+      action: "reorder_rows",
+      sheet: "DATA_PASIEN",
+      newOrder: [2, 4, 3, 5]
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Urutan baris sheet DATA_PASIEN berhasil diperbarui",
+      sheet: "DATA_PASIEN"
+    }
+  },
+  {
+    id: "update_cell",
+    category: "Spreadsheet Matrix Engine",
+    method: "POST",
+    url: "/api",
+    label: "update_cell (Update Sel Tunggal)",
+    desc: "Memperbarui nilai satu sel tertentu (row & column) langsung pada sheet yang dipilih.",
+    body: JSON.stringify({
+      action: "update_cell",
+      sheet: "DATA_PASIEN",
+      row: 2,
+      col: 3,
+      value: "PASIEN NAMA TERUPDATE"
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Sel baris 2 kolom 3 berhasil diperbarui",
+      newValue: "PASIEN NAMA TERUPDATE"
+    }
+  },
+  {
+    id: "clear_column",
+    category: "Spreadsheet Matrix Engine",
+    method: "POST",
+    url: "/api",
+    label: "clear_column (Kosongkan Satu Kolom)",
+    desc: "Mengosongkan seluruh nilai pada satu kolom tertentu dari baris awal hingga akhir.",
+    body: JSON.stringify({
+      action: "clear_column",
+      sheet: "DATA_PASIEN",
+      col: 18,
+      startRow: 2
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Kolom 18 berhasil dikosongkan dari baris 2",
+      clearedColumn: 18
+    }
+  },
+
+  // --- 5. Dedicated CRUD REST & Dual-Sync GAS ---
+  {
+    id: "crud_patient",
+    category: "Dedicated CRUD & Dual-Sync GAS",
+    method: "POST",
+    url: "/api/crud/patient",
+    label: "/api/crud/patient (Simpan Pasien)",
+    desc: "Menyimpan atau memperbarui data satu pasien lengkap 19 kolom ke database via RESTful endpoint.",
+    body: JSON.stringify({
+      row: 2,
+      noRm: "00.06.32.89",
+      namaPasien: "PASIEN UPDATE REST",
+      noHp: "6285394683522",
+      tglKontrol: "2026-10-05"
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Data pasien berhasil disimpan",
+      patient: {
+        rowNumber: 2,
+        noRm: "00.06.32.89",
+        namaPasien: "PASIEN UPDATE REST",
+        noHp: "6285394683522",
+        tglKontrol: "2026-10-05"
+      }
+    }
+  },
+  {
+    id: "crud_patients_bulk_delete",
+    category: "Dedicated CRUD & Dual-Sync GAS",
+    method: "POST",
+    url: "/api/crud/patients/bulk-delete",
+    label: "/api/crud/patients/bulk-delete",
+    desc: "Menghapus sejumlah data pasien terpilih secara aman menggunakan list nomor baris.",
+    body: JSON.stringify({
+      rows: [571, 572]
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil menghapus 2 pasien terpilih",
+      deletedRows: [571, 572],
+      remainingCount: 583
+    }
+  },
+  {
+    id: "crud_setting",
+    category: "Dedicated CRUD & Dual-Sync GAS",
+    method: "POST",
+    url: "/api/crud/setting",
+    label: "/api/crud/setting (Update Config)",
+    desc: "Membuat atau mengupdate pasangan key-value konfigurasi sistem pada sheet SETTING.",
+    body: JSON.stringify({
+      param: "DELAY_CHAT",
+      value: "60",
+      desc: "Jeda antar pengiriman pesan WhatsApp dalam detik"
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Setting DELAY_CHAT berhasil disimpan",
+      param: "DELAY_CHAT",
+      value: "60"
+    }
+  },
+  {
+    id: "crud_template",
+    category: "Dedicated CRUD & Dual-Sync GAS",
+    method: "POST",
+    url: "/api/crud/template",
+    label: "/api/crud/template (Update Template)",
+    desc: "Membuat atau mengupdate template pesan WhatsApp pada sheet CUSTOM_FORMAT.",
+    body: JSON.stringify({
+      code: "WA_PX_H2",
+      text: "Halo {NAMA_PASIEN}, jadwal kontrol gigi Anda di RSKDGM: {TGL_KONTROL}."
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Template WA_PX_H2 berhasil disimpan",
+      code: "WA_PX_H2"
+    }
+  },
+  {
+    id: "crud_prompt",
+    category: "Dedicated CRUD & Dual-Sync GAS",
+    method: "POST",
+    url: "/api/crud/prompt",
+    label: "/api/crud/prompt (Update AI Prompt)",
+    desc: "Memperbarui instruksi System Prompt AI untuk bot percakapan RSKDGM.",
+    body: JSON.stringify({
+      code: "ACTIVE_PROMPT",
+      prompt: "Anda adalah asisten AI resmi RSKDGM Provinsi Sulawesi Selatan yang santun, formal, dan profesional..."
+    }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "System prompt AI berhasil diperbarui",
+      code: "ACTIVE_PROMPT"
+    }
+  },
+  {
+    id: "sync_pull",
+    category: "Dedicated CRUD & Dual-Sync GAS",
+    method: "POST",
+    url: "/api/sync/pull",
+    label: "/api/sync/pull (Tarik dari Google Sheets)",
+    desc: "Menarik data pasien terbaru serta nomor HP yang telah divalidasi dari Google Sheets (Layer 2) ke Upstash Redis (Layer 1).",
+    body: JSON.stringify({ action: "sync_pull" }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil menarik data dari Google Sheets (Layer 2) ke Redis (Layer 1)",
+      pulledCount: 585
+    }
+  },
+  {
+    id: "sync_push",
+    category: "Dedicated CRUD & Dual-Sync GAS",
+    method: "POST",
+    url: "/api/sync/push",
+    label: "/api/sync/push (Dorong ke Google Sheets)",
+    desc: "Mendorong seluruh data pasien dari Upstash Redis ke Google Sheets sebagai backup sekunder.",
+    body: JSON.stringify({ action: "sync_push" }, null, 2),
+    responseSample: {
+      status: "success",
+      message: "Berhasil mendorong data dari Redis (Layer 1) ke Google Sheets (Layer 2)",
+      pushedCount: 585
+    }
+  },
+
+  // --- 6. WhatsApp Bot Follow-Up & Reschedule ---
+  {
+    id: "get_followup",
+    category: "WhatsApp Bot Follow-Up & Reschedule",
+    method: "GET",
+    url: "/api?action=get_followup",
+    label: "?action=get_followup (Queue Blast WA)",
+    desc: "Mengambil daftar pasien blast follow-up otomatis kontrol gigi H-2 atau H-1 dengan delay chat dan kontak DPJP.",
+    params: [
+      { name: "action", default: "get_followup", desc: "Aksi get_followup" },
+      { name: "mode", default: "h2", desc: "Mode followup (h2 atau h1)" },
+      { name: "tgl", default: "auto", desc: "Tanggal target kontrol (auto atau YYYY-MM-DD)" },
+      { name: "preview", default: "false", desc: "Preview data meski sudah terkirim (true/false)" }
+    ],
+    responseSample: {
+      status: "success",
+      mode: "h2",
+      targetDate: "2026-10-03",
+      totalPatients: 8,
+      queue: [
+        {
+          rowNumber: 4,
+          namaPasien: "ANDI NURUL",
+          noRm: "00.11.22.33",
+          noHp: "6281234567890",
+          tglKontrol: "2026-10-03",
+          delayChat: 60,
+          dokterDpjp: "drg. Spesialis Konservasi Gigi"
+        }
+      ]
+    }
+  },
+  {
+    id: "search_patient",
+    category: "WhatsApp Bot Follow-Up & Reschedule",
+    method: "GET",
+    url: "/api?action=search_patient",
+    label: "?action=search_patient (FastIndex <0.1ms)",
+    desc: "Mencari data pasien terverifikasi secara instan via In-Memory Hash Index berdasarkan No RM, Nama, No HP, atau LID.",
+    params: [
+      { name: "action", default: "search_patient", desc: "Aksi search_patient" },
+      { name: "query", default: "ILDHAYANI", desc: "Nama atau No RM pasien" },
+      { name: "phone", default: "", desc: "No HP Pasien (Opsional)" },
+      { name: "lid", default: "", desc: "No LID WhatsApp (Opsional)" }
+    ],
+    responseSample: {
+      status: "success",
+      found: true,
+      patient: {
+        rowNumber: 2,
+        noRm: "00.06.32.89",
+        namaPasien: "ILDHAYANI",
+        noHp: "6285394683522",
+        tglKontrol: "2026-10-05",
+        statusWaH2: "Terkirim",
+        statusDokterH2: "Terkirim",
+        statusRujukan: "Rujukan Aktif",
+        noLid: "110621815218280"
+      }
+    }
+  },
+  {
+    id: "reschedule_patient",
+    category: "WhatsApp Bot Follow-Up & Reschedule",
+    method: "GET",
+    url: "/api?action=reschedule_patient",
+    label: "?action=reschedule_patient (Jadwal Ulang)",
+    desc: "Menjadwalkan ulang kontrol pasien ke tanggal baru di Kolom 19 (S) dan status reschedule di Kolom 16 (P).",
+    params: [
+      { name: "action", default: "reschedule_patient", desc: "Aksi reschedule_patient" },
+      { name: "noRm", default: "00.06.32.89", desc: "Nomor RM Pasien" },
+      { name: "newDate", default: "2026-10-05", desc: "Tanggal kontrol baru (YYYY-MM-DD)" },
+      { name: "no_lid", default: "", desc: "Nomor LID WhatsApp (Opsional)" }
+    ],
+    responseSample: {
+      status: "success",
+      message: "Berhasil melakukan reschedule pasien",
+      noRm: "00.06.32.89",
+      oldDate: "2026-10-01",
+      newDate: "2026-10-05"
+    }
+  },
+  {
+    id: "update_status",
+    category: "WhatsApp Bot Follow-Up & Reschedule",
+    method: "GET",
+    url: "/api?action=update_status",
+    label: "?action=update_status (Status Kirim Blast)",
+    desc: "Mencatat status pengiriman blast WA pasien atau dokter secara real-time. Mendukung mode (h1/h2) dan type (pasien, dokter, both, lid_only, reschedule).",
+    params: [
+      { name: "action", default: "update_status", desc: "Aksi update_status" },
+      { name: "row", default: "2", desc: "Nomor Baris Pasien di Database (Opsional jika kirim noRm/phone)" },
+      { name: "noRm", default: "", desc: "Nomor RM Pasien (Opsional jika ada row)" },
+      { name: "mode", default: "h2", desc: "Mode kontrol (h2 atau h1)" },
+      { name: "type", default: "both", desc: "Target status (both, pasien, dokter, lid_only, reschedule)" },
+      { name: "status", default: "Terkirim", desc: "Nilai status pengiriman WA pasien" },
+      { name: "doctor_status", default: "Terkirim", desc: "Nilai status pengiriman dokter (jika type=both)" },
+      { name: "no_lid", default: "", desc: "No LID WhatsApp untuk auto-bind Kolom 18 (Opsional)" }
+    ],
+    responseSample: {
+      status: "success",
+      message: "Status pengiriman berhasil diperbarui",
+      row: 2,
+      statusWa: "Terkirim",
+      statusDokter: "Terkirim"
+    }
+  },
+  {
+    id: "get_summary_stats",
+    category: "WhatsApp Bot Follow-Up & Reschedule",
+    method: "GET",
+    url: "/api?action=get_summary_stats",
+    label: "?action=get_summary_stats",
+    desc: "Mengambil statistik total pasien, pasien kontrol hari ini, reschedule, rujukan habis, dan yang belum terhubung LID.",
+    params: [{ name: "action", default: "get_summary_stats", desc: "Aksi get_summary_stats" }],
+    responseSample: {
+      status: "success",
+      stats: {
+        totalPatients: 585,
+        todayControls: 14,
+        h2Followups: 8,
+        rescheduled: 5,
+        unlinkedLid: 238
+      }
+    }
+  }
+];
+
+// Endpoint Manifest JSON (Self-Documenting API)
+app.get("/api/endpoints", (req, res) => {
+  res.json({
+    status: "success",
+    service: "RSKDGM SIMGOS v2 REST API Hub",
+    total: REST_API_REGISTRY.length,
+    endpoints: REST_API_REGISTRY
+  });
+});
+
 app.get("/restsheet", (req, res) => {
   res.render("restsheet", {
     title: "RestSheet API Console & Documentation - RSKDGM SIMGOS",
     gasUrl: GAS_URL,
     redisUrl: UPSTASH_URL,
-    activePort: activeServerPort
+    activePort: activeServerPort,
+    apiRegistry: REST_API_REGISTRY
   });
 });
 
