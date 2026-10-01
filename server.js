@@ -1041,8 +1041,9 @@ app.get(["/api", "/api/"], async (req, res) => {
     if (tglParam !== "auto" && /^\d{4}-\d{2}-\d{2}$/.test(tglParam)) {
       targetDateStr = tglParam;
     } else {
-      const targetDateObj = new Date();
-      targetDateObj.setDate(targetDateObj.getDate() + hDays);
+      const todayMakassar = getMakassarTodayStr();
+      const [y, m, d] = todayMakassar.split("-").map(Number);
+      const targetDateObj = new Date(Date.UTC(y, m - 1, d + hDays));
       targetDateStr = targetDateObj.toISOString().substring(0, 10);
     }
 
@@ -2733,7 +2734,7 @@ app.get("/logout", (req, res) => {
 });
 
 function calculateAnalytics() {
-  const todayStr = new Date().toISOString().substring(0, 10);
+  const todayStr = getMakassarTodayStr();
   let todayCount = 0;
   let rescheduleCount = 0;
   let rujukanHabisCount = 0;
